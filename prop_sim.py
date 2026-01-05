@@ -58,7 +58,7 @@ with st.sidebar.expander("📊 Trading Parameters", expanded=True):
     st.markdown("🛡️ **Personal Risk Management**")
     daily_limit_r = st.number_input("Daily Loss Limit (R) (0 = Disabled)", value=2, step=1, help="Ex: Enter 2 means stop trading for the day if loss reaches 2R.")
 
-with st.sidebar.expander("🎲 Simulation Settings", expanded=False):
+with st.sidebar.expander("🎲 Simulation Settings", expanded=True):
     num_simulations = st.number_input("Simulations per Scenario", value=5000, step=100)
     max_days = st.number_input("Max Days to Trade", value=20, step=1)
 
@@ -371,3 +371,4 @@ with tab2:
 
     except ValueError:
         st.error("⚠️ Please check your input format in the sidebar first.")
+
