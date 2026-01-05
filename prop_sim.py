@@ -53,7 +53,7 @@ with st.sidebar.expander("📊 Trading Parameters", expanded=True):
     daily_limit_r = st.number_input("Daily Loss Limit (R) (0 = Disabled)", value=2, step=1, help="Ex: Enter 2 means stop trading for the day if loss reaches 2R.")
 
 with st.sidebar.expander("🎲 Simulation Settings", expanded=False):
-    num_simulations = st.number_input("Simulations per Scenario", value=500, step=100)
+    num_simulations = st.number_input("Simulations per Scenario", value=5000, step=100)
     max_days = st.number_input("Max Days to Trade", value=20, step=1)
 
 run_btn = st.sidebar.button("🚀 Run Full Analysis")
@@ -230,4 +230,5 @@ if run_btn:
 
 else:
     st.info("👈 Click 'Run Full Analysis' to start.")
+
 
