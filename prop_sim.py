@@ -76,7 +76,7 @@ def run_monte_carlo(risk_val, trades_day_val):
     all_max_win_streaks = [] 
     all_max_loss_streaks = []
     all_max_dd_usd = []        
-    all_timeout_equity = []    
+    all_timeout_equity = []    # ✅ Key for new analysis
     all_lowest_equity = []     
     
     for _ in range(num_simulations):
@@ -147,7 +147,7 @@ def run_monte_carlo(risk_val, trades_day_val):
             outcome_status = "Failed"
         else: 
             timeout_count += 1
-            all_timeout_equity.append(equity)
+            all_timeout_equity.append(equity) # Store equity for timeouts
             
         all_final_pnl.append({"PnL": equity - account_size, "Status": outcome_status})
             
@@ -157,6 +157,10 @@ def run_monte_carlo(risk_val, trades_day_val):
     
     avg_days_fail = sum(all_fail_days) / fail_count if fail_count > 0 else 0
     median_days_fail = np.median(all_fail_days) if fail_count > 0 else 0
+    
+    # ✅ Timeout Stats (New)
+    avg_timeout_equity = np.mean(all_timeout_equity) if all_timeout_equity else 0
+    median_timeout_equity = np.median(all_timeout_equity) if all_timeout_equity else 0
         
     avg_max_win_streak = sum(all_max_win_streaks) / num_simulations
     median_max_win_streak = np.median(all_max_win_streaks)
@@ -177,6 +181,10 @@ def run_monte_carlo(risk_val, trades_day_val):
         "Median Days Pass": round(median_days_pass, 1),
         "Avg Days Fail": round(avg_days_fail, 1),
         "Median Days Fail": round(median_days_fail, 1),
+        # ✅ New Metrics
+        "Avg Timeout Equity": round(avg_timeout_equity, 0),
+        "Median Timeout Equity": round(median_timeout_equity, 0),
+        
         "Avg Max Win Streak": round(avg_max_win_streak, 1),
         "Median Max Win Streak": round(median_max_win_streak, 1),
         "Avg Max Loss Streak": round(avg_max_loss_streak, 1),
@@ -190,9 +198,6 @@ def run_monte_carlo(risk_val, trades_day_val):
     }
 
 def run_visualization_sim(risk_val, trades_day_val, n_viz=100):
-    """
-    Original logic from ok.txt - No Jitter, Pure Simulation
-    """
     reward_per_trade = risk_val * reward_ratio
     personal_limit_usd = (daily_limit_r * risk_val) if daily_limit_r > 0 else 0
     all_curves = []
@@ -202,13 +207,10 @@ def run_visualization_sim(risk_val, trades_day_val, n_viz=100):
         high_water_mark = account_size
         status = "Timeout" 
         current_dd_limit = account_size - max_total_dd
-        
         curve = [{"Day": 0, "Equity": account_size, "SimID": sim_id, "Status": "In Progress"}]
         
         for day in range(1, max_days + 1):
             daily_start_equity = equity
-            day_status = "In Progress"
-            
             for trade in range(trades_day_val):
                 is_win = np.random.rand() < win_rate
                 if is_win: equity += reward_per_trade
@@ -219,30 +221,18 @@ def run_visualization_sim(risk_val, trades_day_val, n_viz=100):
                     if trailing_type == "Trailing from High Water Mark":
                         current_dd_limit = high_water_mark - max_total_dd
                 
-                if equity <= current_dd_limit:
-                    status = "Failed"; day_status = "Failed"; break
-                
+                if equity <= current_dd_limit: status = "Failed"; break
                 current_daily_loss = daily_start_equity - equity
-                if current_daily_loss >= max_daily_dd:
-                    status = "Failed"; day_status = "Failed"; break
-                
-                if personal_limit_usd > 0 and current_daily_loss >= personal_limit_usd:
-                    break 
-
-                if equity >= (account_size + profit_target):
-                    status = "Passed"; day_status = "Passed"; break
+                if current_daily_loss >= max_daily_dd: status = "Failed"; break
+                if personal_limit_usd > 0 and current_daily_loss >= personal_limit_usd: break 
+                if equity >= (account_size + profit_target): status = "Passed"; break
             
             curve.append({"Day": day, "Equity": equity, "SimID": sim_id, "Status": status})
-            
-            if day_status != "In Progress":
-                break
+            if status != "In Progress": break
         
         final_status = curve[-1]["Status"]
-        for point in curve:
-            point["Status"] = final_status
-            
+        for point in curve: point["Status"] = final_status
         all_curves.extend(curve)
-        
     return pd.DataFrame(all_curves)
 
 # --- TABS LAYOUT ---
@@ -276,8 +266,8 @@ with tab1:
             cols = ["Risk ($)", "Risk (%)", "Trades/Day", 
                     "Pass Rate (%)", "Avg Days Pass", "Median Days Pass", 
                     "Fail Rate (%)", "Avg Days Fail", "Median Days Fail", 
-                    "Timeout Rate (%)", "Avg Max Win Streak",
-                    "Avg Max Loss Streak", "Worst Case Streak (95%)"]
+                    "Timeout Rate (%)", "Median Timeout Equity", # ✅ New Col
+                    "Avg Max Win Streak", "Avg Max Loss Streak", "Worst Case Streak (95%)"]
             st.session_state.sim_results = df_summary[cols]
             
             st.session_state.sim_params = {
@@ -303,7 +293,8 @@ with tab1:
 
         col3, col4 = st.columns(2)
         with col3: draw_heatmap("Fail Rate (%)", "Reds", "💥 3. Fail Rate (%)", "🟥 **Goal: Minimize.** Darker Red = High Risk.")
-        with col4: draw_heatmap("Median Days Fail", "BuGn", "📉 4. Median Days to Fail", "🟩 **Survival.** Low = Fast Ruin, High = Slow Bleed.")
+        # ✅ New Heatmap: Median Timeout Equity
+        with col4: draw_heatmap("Median Timeout Equity", "Teal", "💰 4. Median Timeout Equity ($)", "🟩 **Status:** Equity left when time runs out.")
 
         col5, col6 = st.columns(2)
         with col5: draw_heatmap("Timeout Rate (%)", "Greys", "🐢 5. Timeout Rate (%)", "⬜ **Goal: Minimize.** High Grey = Too passive.")
@@ -321,15 +312,13 @@ with tab1:
                 "Pass Rate (%)": "{:.1f}%", "Fail Rate (%)": "{:.1f}%", "Timeout Rate (%)": "{:.1f}%",
                 "Avg Days Pass": "{:.1f}", "Median Days Pass": "{:.1f}",
                 "Avg Days Fail": "{:.1f}", "Median Days Fail": "{:.1f}",
+                "Median Timeout Equity": "${:,.0f}", # ✅ Currency Format
                 "Avg Max Win Streak": "{:.1f}", "Avg Max Loss Streak": "{:.1f}", "Worst Case Streak (95%)": "{:.1f}"
             })
             .background_gradient(subset=["Pass Rate (%)"], cmap="Blues")
             .background_gradient(subset=["Fail Rate (%)"], cmap="Reds")
             .background_gradient(subset=["Timeout Rate (%)"], cmap="Greys")
-            .background_gradient(subset=["Avg Days Pass"], cmap="Purples")
-            .background_gradient(subset=["Median Days Pass"], cmap="Purples") 
-            .background_gradient(subset=["Avg Days Fail"], cmap="BuGn")      
-            .background_gradient(subset=["Median Days Fail"], cmap="BuGn")  
+            .background_gradient(subset=["Median Timeout Equity"], cmap="Teal") # ✅ New Color
             .background_gradient(subset=["Avg Max Win Streak"], cmap="Greens") 
             .background_gradient(subset=["Avg Max Loss Streak"], cmap="Oranges")
             .background_gradient(subset=["Worst Case Streak (95%)"], cmap="YlOrRd"),
@@ -360,7 +349,7 @@ with tab2:
             with st.spinner("Calculating Statistics..."):
                 stats = run_monte_carlo(sel_risk, sel_trades)
             
-            # --- METRICS ---
+            # --- METRICS: CUSTOM HTML ---
             st.markdown("#### 📊 Scenario Statistics & Probabilities")
             
             def metric_card(label, main_val, sub_val=None):
@@ -376,7 +365,8 @@ with tab2:
 
             m1, m2, m3, m4 = st.columns(4)
             with m1: metric_card("Median Days Pass", f"{stats['Median Days Pass']}", f"{stats['Avg Days Pass']}")
-            with m2: metric_card("Median Days Fail", f"{stats['Median Days Fail']}", f"{stats['Avg Days Fail']}")
+            # ✅ REPLACED: Show Median Timeout Equity instead of Days Fail
+            with m2: metric_card("Median Timeout Equity", f"${stats['Median Timeout Equity']:,.0f}", f"${stats['Avg Timeout Equity']:,.0f}")
             with m3: metric_card("Median Win Streak", f"{stats['Median Max Win Streak']}", f"{stats['Avg Max Win Streak']}")
             with m4: metric_card("Median Loss Streak", f"{stats['Median Max Loss Streak']}", f"{stats['Avg Max Loss Streak']}")
             
@@ -388,9 +378,8 @@ with tab2:
                 raw_data = stats["Raw Data"]
                 color_map = {"Passed": "#0072B2", "Failed": "#D55E00", "Timeout": "#B6B6B6"}
                 
-                # --- VISUALIZATION PREP (Adding Jitter ONLY for Plotting) ---
-                df_viz['SimID'] = df_viz['SimID'].astype(str) # Force discrete lines
-                # Visual Noise only
+                # Jitter for plotting ONLY
+                df_viz['SimID'] = df_viz['SimID'].astype(str)
                 jitter_amount = sel_risk * 0.1 
                 df_viz['Equity_Plot'] = df_viz['Equity'] + np.random.uniform(-jitter_amount, jitter_amount, size=len(df_viz))
 
@@ -413,37 +402,32 @@ with tab2:
                     fig.add_vline(x=median_val, line_width=3, line_dash="solid", line_color="#333333") 
                     fig.add_vline(x=mean_val, line_width=3, line_dash="dash", line_color="#000000")   
                     fig.add_annotation(x=median_val, y=1.05, yref="paper", text=f"Med:{median_val:.0f}", showarrow=False, font=dict(color="#333333", size=11))
-                    
-                    # ✅ Fixed Margin for Title Alignment
-                    fig.update_layout(height=450, showlegend=False, margin=dict(l=20, r=20, t=60, b=20), bargap=0.1)
+                    fig.update_layout(height=400, showlegend=False, margin=dict(l=20, r=20, t=60, b=20), bargap=0.1)
                     st.plotly_chart(fig, use_container_width=True)
 
                 st.markdown("### 📊 Distribution Analysis")
 
-                # --- 4x2 GRID (PnL Left, Curve Right - Fixed Margins) ---
+                # --- 4x2 GRID ---
                 r1_left, r1_right = st.columns([1, 2])
-                
                 with r1_left: 
                     plot_pnl_hist(raw_data["PnL"], "Final PnL Distribution")
-                
                 with r1_right: 
-                    # Plot using Equity_Plot (Visual Jitter)
                     fig_curve = px.line(df_viz, x="Day", y="Equity_Plot", color="Status", line_group="SimID", 
                                         color_discrete_map=color_map, 
                                         title=f"Equity Curves: {sel_sim_count} Sample Paths",
                                         hover_data={"Equity": True, "Equity_Plot": False}) 
-                    
                     fig_curve.add_hline(y=account_size, line_dash="dash", line_color="black", annotation_text="Start")
                     fig_curve.add_hline(y=account_size + profit_target, line_dash="dot", line_color="#009E73", annotation_text="Target")
                     fig_curve.update_traces(opacity=0.5, line=dict(width=1))
-                    
-                    # ✅ Fixed Margin for Title Alignment
-                    fig_curve.update_layout(height=450, margin=dict(l=20, r=20, t=60, b=20))
+                    fig_curve.update_layout(height=400, margin=dict(l=20, r=20, t=60, b=20))
                     st.plotly_chart(fig_curve, use_container_width=True)
 
                 r2_1, r2_2 = st.columns(2)
                 with r2_1: plot_hist_with_stats(raw_data["Pass Days"], "Days to Pass Distribution", "#6A0DAD", "Days", 20) 
-                with r2_2: plot_hist_with_stats(raw_data["Fail Days"], "Days to Fail Distribution", "#009E73", "Days", 20) 
+                
+                # ✅ REPLACED: Days to Fail -> Timeout Ending Equity
+                with r2_2: 
+                    plot_hist_with_stats(raw_data["Timeout Equity"], "Timeout Ending Equity Distribution", "#008080", "Equity ($)", 50) # Teal color
 
                 r3_1, r3_2 = st.columns(2)
                 with r3_1: plot_hist_with_stats(raw_data["Win Streaks"], "Max Win Streaks", "#2CA02C", "Streak Count", 15) 
