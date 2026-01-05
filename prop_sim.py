@@ -190,12 +190,12 @@ def run_monte_carlo(risk_val, trades_day_val):
     }
 
 def run_visualization_sim(risk_val, trades_day_val, n_viz=100):
+    """
+    Original logic from ok.txt - No Jitter, Pure Simulation
+    """
     reward_per_trade = risk_val * reward_ratio
     personal_limit_usd = (daily_limit_r * risk_val) if daily_limit_r > 0 else 0
     all_curves = []
-    
-    # Jitter logic to ensure lines separate visually
-    jitter_scale = risk_val * 0.2 
     
     for sim_id in range(n_viz):
         equity = account_size
@@ -203,12 +203,12 @@ def run_visualization_sim(risk_val, trades_day_val, n_viz=100):
         status = "Timeout" 
         current_dd_limit = account_size - max_total_dd
         
-        # Jitter start
-        vis_equity = account_size + np.random.uniform(-jitter_scale, jitter_scale)
-        curve = [{"Day": 0, "Equity": vis_equity, "SimID": str(sim_id), "Status": "In Progress"}]
+        curve = [{"Day": 0, "Equity": account_size, "SimID": sim_id, "Status": "In Progress"}]
         
         for day in range(1, max_days + 1):
             daily_start_equity = equity
+            day_status = "In Progress"
+            
             for trade in range(trades_day_val):
                 is_win = np.random.rand() < win_rate
                 if is_win: equity += reward_per_trade
@@ -219,20 +219,30 @@ def run_visualization_sim(risk_val, trades_day_val, n_viz=100):
                     if trailing_type == "Trailing from High Water Mark":
                         current_dd_limit = high_water_mark - max_total_dd
                 
-                if equity <= current_dd_limit: status = "Failed"; break
+                if equity <= current_dd_limit:
+                    status = "Failed"; day_status = "Failed"; break
+                
                 current_daily_loss = daily_start_equity - equity
-                if current_daily_loss >= max_daily_dd: status = "Failed"; break
-                if personal_limit_usd > 0 and current_daily_loss >= personal_limit_usd: break 
-                if equity >= (account_size + profit_target): status = "Passed"; break
+                if current_daily_loss >= max_daily_dd:
+                    status = "Failed"; day_status = "Failed"; break
+                
+                if personal_limit_usd > 0 and current_daily_loss >= personal_limit_usd:
+                    break 
+
+                if equity >= (account_size + profit_target):
+                    status = "Passed"; day_status = "Passed"; break
             
-            # Plot Jitter
-            vis_equity = equity + np.random.uniform(-jitter_scale, jitter_scale)
-            curve.append({"Day": day, "Equity": vis_equity, "SimID": str(sim_id), "Status": status})
-            if status != "In Progress": break
+            curve.append({"Day": day, "Equity": equity, "SimID": sim_id, "Status": status})
+            
+            if day_status != "In Progress":
+                break
         
         final_status = curve[-1]["Status"]
-        for point in curve: point["Status"] = final_status
+        for point in curve:
+            point["Status"] = final_status
+            
         all_curves.extend(curve)
+        
     return pd.DataFrame(all_curves)
 
 # --- TABS LAYOUT ---
@@ -350,7 +360,7 @@ with tab2:
             with st.spinner("Calculating Statistics..."):
                 stats = run_monte_carlo(sel_risk, sel_trades)
             
-            # --- METRICS: CUSTOM HTML NO ARROWS ---
+            # --- METRICS ---
             st.markdown("#### 📊 Scenario Statistics & Probabilities")
             
             def metric_card(label, main_val, sub_val=None):
@@ -378,7 +388,12 @@ with tab2:
                 raw_data = stats["Raw Data"]
                 color_map = {"Passed": "#0072B2", "Failed": "#D55E00", "Timeout": "#B6B6B6"}
                 
-                # --- HELPER WITH MEAN & MEDIAN LINES & GAP ---
+                # --- VISUALIZATION PREP (Adding Jitter ONLY for Plotting) ---
+                df_viz['SimID'] = df_viz['SimID'].astype(str) # Force discrete lines
+                # Visual Noise only
+                jitter_amount = sel_risk * 0.1 
+                df_viz['Equity_Plot'] = df_viz['Equity'] + np.random.uniform(-jitter_amount, jitter_amount, size=len(df_viz))
+
                 def plot_hist_with_stats(data, title, color_hex, label="Count", nbins=50):
                     if not data: st.info(f"No data for {title}"); return
                     mean_val = np.mean(data); median_val = np.median(data)
@@ -399,31 +414,31 @@ with tab2:
                     fig.add_vline(x=mean_val, line_width=3, line_dash="dash", line_color="#000000")   
                     fig.add_annotation(x=median_val, y=1.05, yref="paper", text=f"Med:{median_val:.0f}", showarrow=False, font=dict(color="#333333", size=11))
                     
-                    # ✅ FIXED: Enforced matching top margin (t=60) for Title Alignment
-                    fig.update_layout(height=400, showlegend=False, margin=dict(l=20, r=20, t=60, b=20), bargap=0.1)
+                    # ✅ Fixed Margin for Title Alignment
+                    fig.update_layout(height=450, showlegend=False, margin=dict(l=20, r=20, t=60, b=20), bargap=0.1)
                     st.plotly_chart(fig, use_container_width=True)
 
                 st.markdown("### 📊 Distribution Analysis")
 
-                # --- 4x2 GRID (SWAPPED: PnL Left, Curve Right) ---
-                r1_left, r1_right = st.columns([1, 2]) # PnL takes 1 part, Curve takes 2 parts (Wider)
+                # --- 4x2 GRID (PnL Left, Curve Right - Fixed Margins) ---
+                r1_left, r1_right = st.columns([1, 2])
                 
                 with r1_left: 
                     plot_pnl_hist(raw_data["PnL"], "Final PnL Distribution")
                 
                 with r1_right: 
-                    # Explicit string conversion for SimID to ensure separate lines
-                    df_viz['SimID'] = df_viz['SimID'].astype(str)
-                    fig_curve = px.line(df_viz, x="Day", y="Equity", color="Status", line_group="SimID", 
+                    # Plot using Equity_Plot (Visual Jitter)
+                    fig_curve = px.line(df_viz, x="Day", y="Equity_Plot", color="Status", line_group="SimID", 
                                         color_discrete_map=color_map, 
                                         title=f"Equity Curves: {sel_sim_count} Sample Paths",
-                                        hover_data={"Equity": True}) 
+                                        hover_data={"Equity": True, "Equity_Plot": False}) 
+                    
                     fig_curve.add_hline(y=account_size, line_dash="dash", line_color="black", annotation_text="Start")
                     fig_curve.add_hline(y=account_size + profit_target, line_dash="dot", line_color="#009E73", annotation_text="Target")
                     fig_curve.update_traces(opacity=0.5, line=dict(width=1))
                     
-                    # ✅ FIXED: Enforced matching top margin (t=60) for Title Alignment
-                    fig_curve.update_layout(height=400, margin=dict(l=20, r=20, t=60, b=20)) 
+                    # ✅ Fixed Margin for Title Alignment
+                    fig_curve.update_layout(height=450, margin=dict(l=20, r=20, t=60, b=20))
                     st.plotly_chart(fig_curve, use_container_width=True)
 
                 r2_1, r2_2 = st.columns(2)
