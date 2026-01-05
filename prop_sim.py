@@ -130,8 +130,12 @@ def run_monte_carlo(risk_val, trades_day_val):
     timeout_rate = (timeout_count / num_simulations) * 100
     avg_days = total_days_pass / pass_count if pass_count > 0 else 0
     
+    # Calculate Risk % based on Account Size
+    risk_percent = (risk_val / account_size) * 100
+    
     return {
         "Risk ($)": risk_val,
+        "Risk (%)": risk_percent,  # Added this back!
         "Trades/Day": trades_day_val,
         "Pass Rate (%)": pass_rate,
         "Failed Rate (%)": fail_rate,
@@ -167,6 +171,10 @@ if run_btn:
         progress_bar.empty()
         
         df_summary = pd.DataFrame(results_summary)
+        
+        # Reorder columns to make logical sense
+        cols = ["Risk ($)", "Risk (%)", "Trades/Day", "Pass Rate (%)", "Failed Rate (%)", "Timeout Rate (%)", "Avg Days"]
+        df_summary = df_summary[cols]
         
         # --- Visualization Section (Heatmaps) ---
         
@@ -217,6 +225,7 @@ if run_btn:
         st.dataframe(
             df_summary.style.format({
                 "Risk ($)": "${:.0f}",
+                "Risk (%)": "{:.2f}%",  # Added format for Risk %
                 "Pass Rate (%)": "{:.1f}%",
                 "Failed Rate (%)": "{:.1f}%",
                 "Timeout Rate (%)": "{:.1f}%",
