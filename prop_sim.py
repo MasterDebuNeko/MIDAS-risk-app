@@ -38,7 +38,7 @@ with st.sidebar.expander("📊 Trading Parameters", expanded=True):
     
     # 2. Trades Per Day
     st.markdown("**No. of Trades per day**")
-    trades_input = st.text_input("No. of Trades Input", "2, 3, 4, 5", label_visibility="collapsed")
+    trades_input = st.text_input("No. of Trades Input", "2, 3, 4", label_visibility="collapsed")
     st.markdown('<p class="small-font">integers only, separated by comma</p>', unsafe_allow_html=True)
     
     # 3. Risk Scenarios
@@ -50,10 +50,10 @@ with st.sidebar.expander("📊 Trading Parameters", expanded=True):
     # 4. Personal Risk Management
     st.markdown("---")
     st.markdown("🛡️ **Personal Risk Management**")
-    daily_limit_r = st.number_input("Daily Loss Limit (R) (0 = Disabled)", value=0, step=1, help="Ex: Enter 2 means stop trading for the day if loss reaches 2R.")
+    daily_limit_r = st.number_input("Daily Loss Limit (R) (0 = Disabled)", value=2, step=1, help="Ex: Enter 2 means stop trading for the day if loss reaches 2R.")
 
 with st.sidebar.expander("🎲 Simulation Settings", expanded=False):
-    num_simulations = st.number_input("Simulations per Scenario", value=2000, step=100)
+    num_simulations = st.number_input("Simulations per Scenario", value=5000, step=100)
     max_days = st.number_input("Max Days to Trade", value=20, step=1)
 
 run_btn = st.sidebar.button("🚀 Run Analysis")
@@ -220,3 +220,4 @@ if run_btn:
 
 else:
     st.info("👈 Click 'Run Analysis' to start the simulation.")
+
