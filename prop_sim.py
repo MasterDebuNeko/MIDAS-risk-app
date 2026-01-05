@@ -289,8 +289,13 @@ with tab2:
         with c2:
             sel_trades = st.selectbox("Select Trades/Day", t_options)
         with c3:
-            # New Input: Select Number of Lines
-            sel_sim_count = st.selectbox("No. of Lines", [50, 100, 200, 500])
+            # ✅ Changed to Number Input with 25% Default Logic
+            default_lines = int(num_simulations * 0.25)
+            # Ensure at least 1 line
+            if default_lines < 1: default_lines = 1
+            
+            sel_sim_count = st.number_input("No. of Lines", value=default_lines, min_value=1, step=50, help="Default is 25% of Total Simulations")
+
         with c4:
             st.write("") # Spacer for alignment
             st.write("")
