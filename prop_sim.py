@@ -222,7 +222,7 @@ with tab1:
             cols = ["Risk ($)", "Risk (%)", "Trades/Day", "Pass Rate (%)", "Failed Rate (%)", "Timeout Rate (%)", "Avg Days"]
             st.session_state.sim_results = df_summary[cols]
             
-            # Save Parameters Snapshot (for Footer Reference)
+            # Save Parameters Snapshot
             st.session_state.sim_params = {
                 "acc": account_size, "tgt": profit_target, "mdd": max_daily_dd, "mtd": max_total_dd, "type": trailing_type,
                 "win": win_rate_input, "rr": reward_ratio, "r_lim": daily_limit_r, "sims": num_simulations, "days": max_days,
@@ -270,12 +270,25 @@ with tab1:
 
         st.divider()
         st.subheader("📋 Comprehensive Performance Metrics")
-        st.dataframe(df_summary.style.format({
-            "Risk ($)": "${:.0f}", "Risk (%)": "{:.2f}%", "Pass Rate (%)": "{:.1f}%",
-            "Failed Rate (%)": "{:.1f}%", "Timeout Rate (%)": "{:.1f}%", "Avg Days": "{:.1f} Days"
-        }).background_gradient(subset=["Pass Rate (%)"], cmap="Blues"), use_container_width=True)
         
-        # Footer (Using Saved Snapshot)
+        # Apply Multiple Gradients to match Heatmaps
+        st.dataframe(
+            df_summary.style.format({
+                "Risk ($)": "${:.0f}", 
+                "Risk (%)": "{:.2f}%", 
+                "Pass Rate (%)": "{:.1f}%",
+                "Failed Rate (%)": "{:.1f}%",
+                "Timeout Rate (%)": "{:.1f}%",
+                "Avg Days": "{:.1f} Days"
+            })
+            .background_gradient(subset=["Pass Rate (%)"], cmap="Blues")    # Match Heatmap 1
+            .background_gradient(subset=["Failed Rate (%)"], cmap="Reds")   # Match Heatmap 3
+            .background_gradient(subset=["Timeout Rate (%)"], cmap="Greys") # Match Heatmap 4
+            .background_gradient(subset=["Avg Days"], cmap="Purples"),      # Match Heatmap 2
+            use_container_width=True
+        )
+        
+        # Footer
         st.markdown("---")
         st.subheader("⚙️ Simulation Settings Reference")
         if params:
