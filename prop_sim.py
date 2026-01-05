@@ -21,6 +21,8 @@ if 'sim_results' not in st.session_state:
     st.session_state.sim_results = None
 if 'sim_params' not in st.session_state:
     st.session_state.sim_params = None
+if 'deep_dive_data' not in st.session_state:
+    st.session_state.deep_dive_data = None
 
 # --- Header ---
 st.title("🛡️ Prop Firm Simulator")
@@ -98,7 +100,7 @@ def run_monte_carlo(risk_val, trades_day_val):
             
             for trade in range(trades_day_val):
                 is_win = np.random.rand() < win_rate
-                
+
                 if is_win:
                     current_win_streak += 1
                     current_loss_streak = 0
@@ -191,7 +193,7 @@ def run_monte_carlo(risk_val, trades_day_val):
 
 def run_visualization_sim(risk_val, trades_day_val, n_viz=100):
     """
-    Original logic from ok.txt - No Jitter, Pure Simulation
+    Original logic - Pure Simulation (Jitter added later for plotting)
     """
     reward_per_trade = risk_val * reward_ratio
     personal_limit_usd = (daily_limit_r * risk_val) if daily_limit_r > 0 else 0
@@ -343,7 +345,7 @@ with tab2:
     st.markdown("### 📈 Visualize Specific Scenario")
     st.info("Select parameters to visualize random equity curves and detailed stats.")
     
-    # --- 1. Helper Functions (Defined once) ---
+    # --- 1. Helper Functions ---
     def plot_hist_with_stats(data, title, color_hex, label="Count", nbins=50):
         if not data: st.info(f"No data for {title}"); return
         mean_val = np.mean(data); median_val = np.median(data)
@@ -386,7 +388,7 @@ with tab2:
                 stats = run_monte_carlo(sel_risk, sel_trades)
                 df_viz = run_visualization_sim(sel_risk, sel_trades, n_viz=sel_sim_count)
                 
-                # Pre-calculate Jitter here and store it
+                # Pre-calculate Jitter
                 df_viz['SimID'] = df_viz['SimID'].astype(str)
                 jitter_amount = sel_risk * 0.1 
                 df_viz['Equity_Plot'] = df_viz['Equity'] + np.random.uniform(-jitter_amount, jitter_amount, size=len(df_viz))
@@ -401,7 +403,7 @@ with tab2:
         # --- 4. Display Logic (Run Always if Data Exists) ---
         if "deep_dive_data" in st.session_state and st.session_state.deep_dive_data is not None:
             
-            data = st.session_state.deep_dive_data # Retrieve data
+            data = st.session_state.deep_dive_data
             stats = data["stats"]
             df_viz = data["df_viz"]
             sim_count_disp = data["sim_count"]
