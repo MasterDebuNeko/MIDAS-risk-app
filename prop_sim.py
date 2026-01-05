@@ -2,7 +2,6 @@ import streamlit as st
 import numpy as np
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
 
 # --- Page Configuration ---
 st.set_page_config(page_title="Prop Firm Simulator", layout="wide")
@@ -274,7 +273,7 @@ with tab1:
 # ================= TAB 2: EQUITY CURVES =================
 with tab2:
     st.markdown("### 📈 Visualize Specific Scenario")
-    st.info("Select a combination to see 100 random equity curves.")
+    st.info("Select parameters to visualize random equity curves.")
     
     try:
         # Parse inputs again for dropdowns
@@ -282,40 +281,51 @@ with tab2:
         t_options = [int(x.strip()) for x in trades_input.split(',')]
         r_options.sort(); t_options.sort()
         
-        c1, c2, c3 = st.columns([1,1,2])
+        # Layout with 4 columns for inputs + button
+        c1, c2, c3, c4 = st.columns([1, 1, 1, 1.5])
+        
         with c1:
-            sel_risk = st.selectbox("Select Risk Amount ($)", r_options)
+            sel_risk = st.selectbox("Select Risk ($)", r_options)
         with c2:
             sel_trades = st.selectbox("Select Trades/Day", t_options)
         with c3:
-            st.write("") # Spacer
+            # New Input: Select Number of Lines
+            sel_sim_count = st.selectbox("No. of Lines", [50, 100, 200, 500])
+        with c4:
+            st.write("") # Spacer for alignment
             st.write("")
-            viz_btn = st.button("📸 Generate Equity Curves", key="btn_viz")
+            viz_btn = st.button("📸 Generate Curves", key="btn_viz", use_container_width=True)
             
         if viz_btn:
-            with st.spinner(f"Simulating 100 runs for Risk ${sel_risk}, Trades {sel_trades}..."):
-                df_viz = run_visualization_sim(sel_risk, sel_trades, n_viz=100)
+            with st.spinner(f"Simulating {sel_sim_count} runs for Risk ${sel_risk}, Trades {sel_trades}..."):
+                # Use user-selected sim count
+                df_viz = run_visualization_sim(sel_risk, sel_trades, n_viz=sel_sim_count)
                 
-                # Define Colors
-                color_map = {"Passed": "#28a745", "Failed": "#dc3545", "Timeout": "#6c757d"}
+                # Colorblind Safe Palette (Okabe & Ito style)
+                color_map = {
+                    "Passed": "#0072B2",  # Blue
+                    "Failed": "#D55E00",  # Vermilion (Red-Orange)
+                    "Timeout": "#B6B6B6"  # Light Grey
+                }
                 
                 # Plot
                 fig = px.line(df_viz, x="Day", y="Equity", color="Status", line_group="SimID",
                               color_discrete_map=color_map,
-                              title=f"Equity Curves: Risk ${sel_risk} | {sel_trades} Trades/Day (100 Samples)")
+                              title=f"Equity Curves: Risk ${sel_risk} | {sel_trades} Trades/Day ({sel_sim_count} Samples)")
                 
-                # Add Lines (Initial, Target, Max Loss estimate)
+                # Add Reference Lines
                 fig.add_hline(y=account_size, line_dash="dash", line_color="black", annotation_text="Start")
-                fig.add_hline(y=account_size + profit_target, line_dash="dot", line_color="green", annotation_text="Target")
-                # Note: Drawdown line is dynamic, so we just show start level
+                fig.add_hline(y=account_size + profit_target, line_dash="dot", line_color="#009E73", annotation_text="Target") # Greenish
                 
-                fig.update_traces(opacity=0.4, line=dict(width=1))
+                fig.update_traces(opacity=0.5, line=dict(width=1))
                 fig.update_layout(height=600)
                 st.plotly_chart(fig, use_container_width=True)
                 
-                # Stats for this batch
-                batch_pass = len(df_viz[df_viz['Status'] == 'Passed']['SimID'].unique())
-                st.caption(f"In this sample batch: Passed {batch_pass}%")
+                # Stats for this specific batch
+                unique_sims = df_viz.groupby('SimID')['Status'].first()
+                batch_pass = (unique_sims == 'Passed').sum()
+                batch_pass_rate = (batch_pass / len(unique_sims)) * 100
+                st.caption(f"In this sample batch of {sel_sim_count} runs: Passed {batch_pass_rate:.1f}%")
 
     except ValueError:
         st.error("⚠️ Please check your input format in the sidebar first.")
