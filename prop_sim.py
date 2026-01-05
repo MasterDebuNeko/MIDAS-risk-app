@@ -21,11 +21,20 @@ st.markdown("เปรียบเทียบความเสี่ยงห�
 st.sidebar.header("⚙️ Settings")
 
 with st.sidebar.expander("📝 Prop Firm Rules", expanded=True):
-    account_size = st.number_input("Account Size ($)", value=25000, step=1000)
-    profit_target = st.number_input("Profit Target ($)", value=1500, step=100)
-    max_daily_dd = st.number_input("Max Daily Drawdown ($)", value=1500, step=100)
-    max_total_dd = st.number_input("Max Total Drawdown ($)", value=1500, step=100)
-    trailing_type = st.selectbox("Drawdown Type", ["Static", "Trailing from High Water Mark"])
+    # แก้ value เป็น 50000
+    account_size = st.number_input("Account Size ($)", value=50000, step=1000)
+    
+    # แก้ value เป็น 3000
+    profit_target = st.number_input("Profit Target ($)", value=3000, step=100)
+    
+    # แก้ value เป็น 2500
+    max_daily_dd = st.number_input("Max Daily Drawdown ($)", value=2500, step=100)
+    
+    # แก้ value เป็น 2500
+    max_total_dd = st.number_input("Max Total Drawdown ($)", value=2500, step=100)
+    
+    # สลับเอา "Trailing..." ขึ้นมาก่อน เพื่อให้เป็นค่า Default ตามรูป
+    trailing_type = st.selectbox("Drawdown Type", ["Trailing from High Water Mark", "Static"])
 
 with st.sidebar.expander("📊 Trading Parameters", expanded=True):
     win_rate = st.slider("Win Rate (%)", 10, 90, 70) / 100.0
@@ -169,4 +178,5 @@ if run_btn:
         st.error("⚠️ กรุณาใส่ตัวเลขในช่อง Risk Scenarios ให้ถูกต้อง (เช่น: 100, 200, 300)")
 
 else:
+
     st.info("👈 ใส่ค่า Risk หลายๆ ค่าคั่นด้วยจุลภาค (,) ในแถบด้านซ้าย แล้วกด Run เพื่อเปรียบเทียบเจ้าค่ะ")
