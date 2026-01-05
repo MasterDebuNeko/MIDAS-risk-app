@@ -4,7 +4,7 @@ import pandas as pd
 import plotly.express as px
 
 # --- Page Configuration ---
-st.set_page_config(page_title="Midas Model - Dual Heatmap", layout="wide")
+st.set_page_config(page_title="Prop Firm Simulator", layout="wide")
 
 # --- CSS Styling ---
 st.markdown("""
@@ -16,7 +16,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- Header ---
-st.title("🛡️ Midas Model: Dual Heatmap Analysis")
+st.title("🛡️ Prop Firm Simulator")
 st.markdown("Analyze **Pass Probability** and **Time Efficiency** for Prop Firm challenges.")
 
 # --- Sidebar Inputs ---
@@ -220,4 +220,5 @@ if run_btn:
 
 else:
     st.info("👈 Click 'Run Analysis' to start the simulation.")
+
 
