@@ -23,7 +23,6 @@ if 'sim_params' not in st.session_state:
 
 # --- Header ---
 st.title("🛡️ Prop Firm Simulator")
-# ✅ Refined Header Description
 st.markdown("**Monte Carlo Analysis: Probability, Efficiency, and Risk Metrics.**")
 
 # --- Sidebar Inputs ---
@@ -238,9 +237,9 @@ def run_visualization_sim(risk_val, trades_day_val, n_viz=100):
     return pd.DataFrame(all_curves)
 
 # --- TABS LAYOUT ---
-tab1, tab2 = st.tabs(["📊 Heatmap Analysis", "📈 Equity Curve Inspector"])
+tab1, tab2 = st.tabs(["🗺️ Global Strategy Map", "🔬 Single Scenario Deep Dive"])
 
-# ================= TAB 1: HEATMAP =================
+# ================= TAB 1: STRATEGY MAP =================
 with tab1:
     run_btn = st.button("🚀 Run Full Analysis", key="btn_heatmap")
     
@@ -310,7 +309,6 @@ with tab1:
                                     x=heatmap_days.columns, y=heatmap_days.index, text_auto=".1f", aspect="auto", color_continuous_scale="Purples")
             fig_days.update_yaxes(dtick=1)
             st.plotly_chart(fig_days, use_container_width=True)
-            # ✅ Refined Caption
             st.caption("🟪 **Efficiency.** Median duration. 50% of successful runs pass within this time.")
 
         # ROW 2: Failure Zone
@@ -322,7 +320,6 @@ with tab1:
                                     x=heatmap_fail.columns, y=heatmap_fail.index, text_auto=".1f", aspect="auto", color_continuous_scale="Reds")
             fig_fail.update_yaxes(dtick=1)
             st.plotly_chart(fig_fail, use_container_width=True)
-            # ✅ Refined Caption
             st.caption("🟥 **Goal: Minimize.** Darker Red = High Risk. (0% = Safe/No failures).")
 
         with col4:
@@ -332,7 +329,6 @@ with tab1:
                                     x=heatmap_dfail.columns, y=heatmap_dfail.index, text_auto=".1f", aspect="auto", color_continuous_scale="BuGn")
             fig_dfail.update_yaxes(dtick=1)
             st.plotly_chart(fig_dfail, use_container_width=True)
-            # ✅ Refined Caption
             st.caption("🟩 **Survival.** Low = Fast Ruin, High = Slow Bleed. (0 = No failures occurred).")
 
         # ROW 3: Stagnation & Momentum
@@ -364,7 +360,7 @@ with tab1:
                                     x=heatmap_streak.columns, y=heatmap_streak.index, text_auto=".1f", aspect="auto", color_continuous_scale="Oranges")
             fig_streak.update_yaxes(dtick=1)
             st.plotly_chart(fig_streak, use_container_width=True)
-            st.caption("🟧 **Pain Index.** Average consecutive losses to endure.")
+            st.caption("🟧 **Pain Index.** Average max consecutive losses.")
 
         with col8:
             st.subheader("💀 8. Worst Case Streak (95%)")
@@ -419,7 +415,7 @@ with tab1:
     else:
         st.info("👈 Click 'Run Full Analysis' to start.")
 
-# ================= TAB 2: EQUITY CURVES =================
+# ================= TAB 2: DEEP DIVE =================
 with tab2:
     st.markdown("### 📈 Visualize Specific Scenario")
     st.info("Select parameters to visualize random equity curves and detailed stats.")
@@ -465,6 +461,7 @@ with tab2:
             # --- BOTTOM ROW (DEEP DIVE) ---
             st.markdown("#### 📊 Deep Dive Statistics")
             m1, m2, m3, m4, m5, m6, m7 = st.columns(7)
+            # ✅ Updated Labels for Consistency
             with m1:
                 st.metric(label="Avg Days Pass", value=f"{stats['Avg Days Pass']}")
             with m2:
@@ -474,11 +471,11 @@ with tab2:
             with m4:
                 st.metric(label="Median Days Fail", value=f"{stats['Median Days Fail']}")
             with m5:
-                st.metric(label="Avg Max Win", value=f"{stats['Avg Max Win Streak']}")
+                st.metric(label="Avg Max Win Streak", value=f"{stats['Avg Max Win Streak']}")
             with m6:
-                st.metric(label="Avg Max Loss", value=f"{stats['Avg Max Loss Streak']}")
+                st.metric(label="Avg Max Loss Streak", value=f"{stats['Avg Max Loss Streak']}")
             with m7:
-                st.metric(label="Worst Case (95%)", value=f"{stats['Worst Case Streak (95%)']}")
+                st.metric(label="Worst Case Streak (95%)", value=f"{stats['Worst Case Streak (95%)']}")
             
             st.divider()
 
