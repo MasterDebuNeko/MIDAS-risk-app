@@ -12,6 +12,7 @@ st.markdown("""
     .metric-card { background-color: #f0f2f6; padding: 15px; border-radius: 10px; }
     .stButton>button { width: 100%; background-color: #007bff; color: white; }
     .small-font { font-size: 12px; color: #666; margin-top: -10px; margin-bottom: 10px; }
+    .avg-text { font-size: 13px; color: #888; margin-top: -15px; margin-bottom: 10px; font-weight: 400; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -74,8 +75,6 @@ def run_monte_carlo(risk_val, trades_day_val):
     all_final_pnl = []
     all_max_win_streaks = [] 
     all_max_loss_streaks = []
-    
-    # New collections for full mapping
     all_max_dd_usd = []        
     all_timeout_equity = []    
     all_lowest_equity = []     
@@ -200,7 +199,9 @@ def run_visualization_sim(risk_val, trades_day_val, n_viz=100):
         high_water_mark = account_size
         status = "Timeout" 
         current_dd_limit = account_size - max_total_dd
-        curve = [{"Day": 0, "Equity": account_size, "SimID": sim_id, "Status": "In Progress"}]
+        # Jitter start for visual separation
+        vis_equity = account_size + np.random.uniform(-1, 1)
+        curve = [{"Day": 0, "Equity": vis_equity, "SimID": str(sim_id), "Status": "In Progress"}]
         
         for day in range(1, max_days + 1):
             daily_start_equity = equity
@@ -219,7 +220,10 @@ def run_visualization_sim(risk_val, trades_day_val, n_viz=100):
                 if current_daily_loss >= max_daily_dd: status = "Failed"; break
                 if personal_limit_usd > 0 and current_daily_loss >= personal_limit_usd: break 
                 if equity >= (account_size + profit_target): status = "Passed"; break
-            curve.append({"Day": day, "Equity": equity, "SimID": sim_id, "Status": status})
+            
+            # Plot Jitter
+            vis_equity = equity + np.random.uniform(-5, 5)
+            curve.append({"Day": day, "Equity": vis_equity, "SimID": str(sim_id), "Status": status})
             if status != "In Progress": break
         
         final_status = curve[-1]["Status"]
@@ -293,7 +297,7 @@ with tab1:
 
         col7, col8 = st.columns(2)
         with col7: draw_heatmap("Avg Max Loss Streak", "Oranges", "🥶 7. Avg Max Loss Streak", "🟧 **Pain Index.** Average consecutive losses.")
-        with col8: draw_heatmap("Worst Case Streak (95%)", "YlOrRd", "💀 8. Worst Case Streak (95%)", "🟥 **Extreme Risk.** 95% chance won't exceed this.")
+        with col8: draw_heatmap("Worst Case Streak (95%)", "YlOrRd", "💀 8. Worst Case Streak (95%)", "🟥 **Extreme Risk.** 95% chance loss streak won't exceed this.")
 
         st.divider(); st.subheader("📋 Comprehensive Performance Metrics")
         
@@ -333,7 +337,6 @@ with tab2:
         c1, c2, c3, c4 = st.columns([1, 1, 1, 1.5])
         with c1: sel_risk = st.selectbox("Select Risk ($)", r_options)
         with c2: sel_trades = st.selectbox("Select Trades/Day", t_options)
-        # Default 25% lines, but visual is clearer now
         with c3: sel_sim_count = st.number_input("No. of Lines", value=int(num_simulations*0.25), min_value=1, step=50)
         with c4: 
             st.write(""); st.write("")
@@ -343,19 +346,25 @@ with tab2:
             with st.spinner("Calculating Statistics..."):
                 stats = run_monte_carlo(sel_risk, sel_trades)
             
-            # --- METRICS ---
+            # --- METRICS: CUSTOM HTML NO ARROWS ---
             st.markdown("#### 📊 Scenario Statistics & Probabilities")
+            
+            def metric_card(label, main_val, sub_val=None):
+                st.metric(label, main_val)
+                if sub_val:
+                    st.markdown(f"<div class='avg-text'>Avg: {sub_val}</div>", unsafe_allow_html=True)
+
             k1, k2, k3, k4 = st.columns(4)
-            with k1: st.metric("🔥 Pass Rate", f"{stats['Pass Rate (%)']:.1f}%")
-            with k2: st.metric("💥 Fail Rate", f"{stats['Fail Rate (%)']:.1f}%")
-            with k3: st.metric("🐢 Timeout Rate", f"{stats['Timeout Rate (%)']:.1f}%")
-            with k4: st.metric("💀 Worst Case (95%)", f"{stats['Worst Case Streak (95%)']}")
+            with k1: metric_card("🔥 Pass Rate", f"{stats['Pass Rate (%)']:.1f}%")
+            with k2: metric_card("💥 Fail Rate", f"{stats['Fail Rate (%)']:.1f}%")
+            with k3: metric_card("🐢 Timeout Rate", f"{stats['Timeout Rate (%)']:.1f}%")
+            with k4: metric_card("💀 Worst Case (95%)", f"{stats['Worst Case Streak (95%)']}")
 
             m1, m2, m3, m4 = st.columns(4)
-            with m1: st.metric("Median Days Pass", f"{stats['Median Days Pass']}", delta=f"Avg: {stats['Avg Days Pass']}", delta_color="off")
-            with m2: st.metric("Median Days Fail", f"{stats['Median Days Fail']}", delta=f"Avg: {stats['Avg Days Fail']}", delta_color="off")
-            with m3: st.metric("Median Win Streak", f"{stats['Median Max Win Streak']}", delta=f"Avg: {stats['Avg Max Win Streak']}", delta_color="off")
-            with m4: st.metric("Median Loss Streak", f"{stats['Median Max Loss Streak']}", delta=f"Avg: {stats['Avg Max Loss Streak']}", delta_color="off")
+            with m1: metric_card("Median Days Pass", f"{stats['Median Days Pass']}", f"{stats['Avg Days Pass']}")
+            with m2: metric_card("Median Days Fail", f"{stats['Median Days Fail']}", f"{stats['Avg Days Fail']}")
+            with m3: metric_card("Median Win Streak", f"{stats['Median Max Win Streak']}", f"{stats['Avg Max Win Streak']}")
+            with m4: metric_card("Median Loss Streak", f"{stats['Median Max Loss Streak']}", f"{stats['Avg Max Loss Streak']}")
             
             st.divider()
 
@@ -373,7 +382,6 @@ with tab2:
                     fig.add_vline(x=mean_val, line_width=2, line_dash="dash", line_color="#0072B2")   
                     fig.add_annotation(x=median_val, y=1.05, yref="paper", text=f"Med:{median_val:.1f}", showarrow=False, font=dict(color="#333333", size=10), xanchor="right")
                     fig.add_annotation(x=mean_val, y=1.12, yref="paper", text=f"Avg:{mean_val:.1f}", showarrow=False, font=dict(color="#0072B2", size=10), xanchor="left")
-                    # ✅ Bargap added
                     fig.update_layout(height=350, showlegend=False, margin=dict(l=20, r=20, t=50, b=20), bargap=0.1)
                     st.plotly_chart(fig, use_container_width=True)
 
@@ -392,7 +400,8 @@ with tab2:
 
                 r1_1, r1_2 = st.columns([1.5, 1])
                 with r1_1: 
-                    # Equity Curve with Opacity 0.5
+                    # Explicit string conversion for SimID to ensure separate lines
+                    df_viz['SimID'] = df_viz['SimID'].astype(str)
                     fig_curve = px.line(df_viz, x="Day", y="Equity", color="Status", line_group="SimID", color_discrete_map=color_map, title=f"Equity Curves: {sel_sim_count} Sample Paths")
                     fig_curve.add_hline(y=account_size, line_dash="dash", line_color="black"); fig_curve.add_hline(y=account_size + profit_target, line_dash="dot", line_color="#009E73")
                     fig_curve.update_traces(opacity=0.5, line=dict(width=1)); fig_curve.update_layout(height=450)
