@@ -190,6 +190,9 @@ def run_monte_carlo(risk_val, trades_day_val):
     }
 
 def run_visualization_sim(risk_val, trades_day_val, n_viz=100):
+    """
+    Restored to Original Logic (from ok.txt) to fix rendering issues.
+    """
     reward_per_trade = risk_val * reward_ratio
     personal_limit_usd = (daily_limit_r * risk_val) if daily_limit_r > 0 else 0
     all_curves = []
@@ -199,12 +202,14 @@ def run_visualization_sim(risk_val, trades_day_val, n_viz=100):
         high_water_mark = account_size
         status = "Timeout" 
         current_dd_limit = account_size - max_total_dd
-        # Jitter start for visual separation
-        vis_equity = account_size + np.random.uniform(-1, 1)
-        curve = [{"Day": 0, "Equity": vis_equity, "SimID": str(sim_id), "Status": "In Progress"}]
+        
+        # Original Logic: Clean start
+        curve = [{"Day": 0, "Equity": account_size, "SimID": sim_id, "Status": "In Progress"}]
         
         for day in range(1, max_days + 1):
             daily_start_equity = equity
+            day_status = "In Progress"
+            
             for trade in range(trades_day_val):
                 is_win = np.random.rand() < win_rate
                 if is_win: equity += reward_per_trade
@@ -215,20 +220,31 @@ def run_visualization_sim(risk_val, trades_day_val, n_viz=100):
                     if trailing_type == "Trailing from High Water Mark":
                         current_dd_limit = high_water_mark - max_total_dd
                 
-                if equity <= current_dd_limit: status = "Failed"; break
+                if equity <= current_dd_limit:
+                    status = "Failed"; day_status = "Failed"; break
+                
                 current_daily_loss = daily_start_equity - equity
-                if current_daily_loss >= max_daily_dd: status = "Failed"; break
-                if personal_limit_usd > 0 and current_daily_loss >= personal_limit_usd: break 
-                if equity >= (account_size + profit_target): status = "Passed"; break
+                if current_daily_loss >= max_daily_dd:
+                    status = "Failed"; day_status = "Failed"; break
+                
+                if personal_limit_usd > 0 and current_daily_loss >= personal_limit_usd:
+                    break 
+
+                if equity >= (account_size + profit_target):
+                    status = "Passed"; day_status = "Passed"; break
             
-            # Plot Jitter
-            vis_equity = equity + np.random.uniform(-5, 5)
-            curve.append({"Day": day, "Equity": vis_equity, "SimID": str(sim_id), "Status": status})
-            if status != "In Progress": break
+            curve.append({"Day": day, "Equity": equity, "SimID": sim_id, "Status": status})
+            
+            if day_status != "In Progress":
+                break
         
+        # Propagate final status (Original Logic)
         final_status = curve[-1]["Status"]
-        for point in curve: point["Status"] = final_status
+        for point in curve:
+            point["Status"] = final_status
+            
         all_curves.extend(curve)
+        
     return pd.DataFrame(all_curves)
 
 # --- TABS LAYOUT ---
@@ -374,6 +390,14 @@ with tab2:
                 raw_data = stats["Raw Data"]
                 color_map = {"Passed": "#0072B2", "Failed": "#D55E00", "Timeout": "#B6B6B6"}
                 
+                # --- VISUALIZATION PREP (Adding Jitter ONLY for Plotting) ---
+                # This ensures the original logic is untouched, but visual lines separate
+                df_viz['SimID'] = df_viz['SimID'].astype(str) # Force discrete lines
+                
+                # Add slight noise to separate perfectly overlapping lines
+                jitter_amount = sel_risk * 0.1 # 10% of risk amount
+                df_viz['Equity_Plot'] = df_viz['Equity'] + np.random.uniform(-jitter_amount, jitter_amount, size=len(df_viz))
+
                 def plot_hist_with_stats(data, title, color_hex, label="Count", nbins=50):
                     if not data: st.info(f"No data for {title}"); return
                     mean_val = np.mean(data); median_val = np.median(data)
@@ -400,12 +424,18 @@ with tab2:
 
                 r1_1, r1_2 = st.columns([1.5, 1])
                 with r1_1: 
-                    # Explicit string conversion for SimID to ensure separate lines
-                    df_viz['SimID'] = df_viz['SimID'].astype(str)
-                    fig_curve = px.line(df_viz, x="Day", y="Equity", color="Status", line_group="SimID", color_discrete_map=color_map, title=f"Equity Curves: {sel_sim_count} Sample Paths")
-                    fig_curve.add_hline(y=account_size, line_dash="dash", line_color="black"); fig_curve.add_hline(y=account_size + profit_target, line_dash="dot", line_color="#009E73")
-                    fig_curve.update_traces(opacity=0.5, line=dict(width=1)); fig_curve.update_layout(height=450)
+                    # Plot using Equity_Plot (Jittered) but hovering shows real Equity
+                    fig_curve = px.line(df_viz, x="Day", y="Equity_Plot", color="Status", line_group="SimID", 
+                                        color_discrete_map=color_map, 
+                                        title=f"Equity Curves: {sel_sim_count} Sample Paths",
+                                        hover_data={"Equity": True, "Equity_Plot": False}) 
+                    
+                    fig_curve.add_hline(y=account_size, line_dash="dash", line_color="black", annotation_text="Start")
+                    fig_curve.add_hline(y=account_size + profit_target, line_dash="dot", line_color="#009E73", annotation_text="Target")
+                    fig_curve.update_traces(opacity=0.5, line=dict(width=1))
+                    fig_curve.update_layout(height=450)
                     st.plotly_chart(fig_curve, use_container_width=True)
+                    
                 with r1_2: 
                     plot_pnl_hist(raw_data["PnL"], "Final PnL Distribution")
 
