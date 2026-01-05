@@ -50,7 +50,7 @@ with st.sidebar.expander("📊 Trading Parameters", expanded=True):
     # 4. Personal Risk Management
     st.markdown("---")
     st.markdown("🛡️ **Personal Risk Management**")
-    daily_limit_r = st.number_input("Daily Loss Limit (R) (0 = Disabled)", value=0, step=1, help="Ex: Enter 2 means stop trading for the day if loss reaches 2R.")
+    daily_limit_r = st.number_input("Daily Loss Limit (R) (0 = Disabled)", value=2, step=1, help="Ex: Enter 2 means stop trading for the day if loss reaches 2R.")
 
 with st.sidebar.expander("🎲 Simulation Settings", expanded=False):
     num_simulations = st.number_input("Simulations per Scenario", value=500, step=100)
@@ -230,3 +230,4 @@ if run_btn:
 
 else:
     st.info("👈 Click 'Run Full Analysis' to start.")
+
