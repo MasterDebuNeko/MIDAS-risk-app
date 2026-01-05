@@ -77,8 +77,8 @@ def run_monte_carlo(risk_val, trades_day_val):
     all_pass_days = []
     all_fail_days = []
     all_final_pnl = []
-    all_max_win_streaks = []  # Added
-    all_max_loss_streaks = [] # Added
+    all_max_win_streaks = [] 
+    all_max_loss_streaks = []
     
     for _ in range(num_simulations):
         equity = account_size
@@ -187,7 +187,6 @@ def run_monte_carlo(risk_val, trades_day_val):
         "Avg Max Loss Streak": round(avg_max_loss_streak, 1),
         "Worst Case Streak (95%)": round(worst_case_95, 1),
         
-        # ✅ Sending ALL raw data for Histograms
         "Raw Data": {
             "PnL": all_final_pnl,
             "Pass Days": all_pass_days,
@@ -474,7 +473,7 @@ with tab2:
             
             st.divider()
 
-            # --- BOTTOM ROW (DEEP DIVE) ---
+            # --- MIDDLE ROW (DEEP DIVE) ---
             st.markdown("#### 📊 Deep Dive Statistics")
             m1, m2, m3, m4, m5, m6, m7 = st.columns(7)
             with m1:
@@ -494,81 +493,73 @@ with tab2:
             
             st.divider()
 
-            # --- PLOTS ROW ---
-            # 3. Generate Curves (Left) & Histogram (Right)
+            # --- PLOTS ROWS (The Requested Layout) ---
             with st.spinner(f"Simulating..."):
                 # Simulation for Lines
                 df_viz = run_visualization_sim(sel_risk, sel_trades, n_viz=sel_sim_count)
+                raw_data = stats["Raw Data"]
                 
                 # Colors
                 color_map = {"Passed": "#0072B2", "Failed": "#D55E00", "Timeout": "#B6B6B6"}
                 
-                # Layout Side-by-Side
-                p1, p2 = st.columns(2)
+                # --- ROW 1: EQUITY CURVE + FINAL PNL ---
+                r1_c1, r1_c2 = st.columns([1.5, 1]) # Slightly wider for Equity Curve
                 
-                with p1:
-                    # --- Plot 1: Equity Curves ---
+                with r1_c1:
                     fig_curve = px.line(df_viz, x="Day", y="Equity", color="Status", line_group="SimID",
                                   color_discrete_map=color_map,
                                   title=f"Equity Curves: {sel_sim_count} Sample Paths")
-                    
                     fig_curve.add_hline(y=account_size, line_dash="dash", line_color="black", annotation_text="Start")
                     fig_curve.add_hline(y=account_size + profit_target, line_dash="dot", line_color="#009E73", annotation_text="Target")
                     fig_curve.update_traces(opacity=0.3, line=dict(width=1))
-                    fig_curve.update_layout(height=500)
+                    fig_curve.update_layout(height=450)
                     st.plotly_chart(fig_curve, use_container_width=True)
-
-                with p2:
-                    # --- Plot 2: Interactive Histograms ---
-                    raw_data = stats["Raw Data"]
-                    
-                    # 🔹 Dropdown for Metric Selection
-                    metric_choice = st.selectbox(
-                        "📊 Select Distribution Metric:",
-                        ["Final Profit/Loss (PnL)", "Days to Pass", "Days to Fail", "Max Win Streak", "Max Loss Streak"]
-                    )
-                    
-                    # 🔹 Logic for Plotting based on selection
-                    if metric_choice == "Final Profit/Loss (PnL)":
-                        df_hist = pd.DataFrame(raw_data["PnL"])
-                        fig_hist = px.histogram(df_hist, x="PnL", color="Status", nbins=50,
-                                                color_discrete_map=color_map,
-                                                title="Distribution of Final Outcomes (PnL)")
-                    
-                    elif metric_choice == "Days to Pass":
-                        data = raw_data["Pass Days"]
-                        if data:
-                            fig_hist = px.histogram(x=data, nbins=20, title="Distribution: Days to Pass",
-                                                    labels={'x': 'Days'}, color_discrete_sequence=['#0072B2']) # Blue
-                        else:
-                            st.warning("No Pass data available (0% Pass Rate).")
-                            fig_hist = None
-
-                    elif metric_choice == "Days to Fail":
-                        data = raw_data["Fail Days"]
-                        if data:
-                            fig_hist = px.histogram(x=data, nbins=20, title="Distribution: Days to Fail",
-                                                    labels={'x': 'Days'}, color_discrete_sequence=['#D55E00']) # Red/Orange
-                        else:
-                            st.warning("No Failure data available (0% Fail Rate).")
-                            fig_hist = None
-
-                    elif metric_choice == "Max Win Streak":
-                        data = raw_data["Win Streaks"]
-                        fig_hist = px.histogram(x=data, nbins=20, title="Distribution: Max Win Streaks",
-                                                labels={'x': 'Streak Count'}, color_discrete_sequence=['#009E73']) # Greenish
-
-                    elif metric_choice == "Max Loss Streak":
-                        data = raw_data["Loss Streaks"]
-                        fig_hist = px.histogram(x=data, nbins=20, title="Distribution: Max Loss Streaks",
-                                                labels={'x': 'Streak Count'}, color_discrete_sequence=['#E69F00']) # Orange
-
-                    if fig_hist:
-                        fig_hist.update_layout(height=450)
-                        st.plotly_chart(fig_hist, use_container_width=True)
                 
+                with r1_c2:
+                    df_hist = pd.DataFrame(raw_data["PnL"])
+                    fig_pnl = px.histogram(df_hist, x="PnL", color="Status", nbins=50,
+                                            color_discrete_map=color_map, title="Final PnL Distribution")
+                    fig_pnl.update_layout(showlegend=False, height=450)
+                    st.plotly_chart(fig_pnl, use_container_width=True)
+                
+                # --- ROW 2: DAYS TO PASS + DAYS TO FAIL ---
+                r2_c1, r2_c2 = st.columns(2)
+                
+                with r2_c1:
+                    if raw_data["Pass Days"]:
+                        fig_pass = px.histogram(x=raw_data["Pass Days"], nbins=20, title="Distribution: Days to Pass",
+                                                labels={'x': 'Days'}, color_discrete_sequence=['#0072B2']) 
+                        fig_pass.update_layout(height=350)
+                        st.plotly_chart(fig_pass, use_container_width=True)
+                    else:
+                        st.info("ℹ️ No Pass Data available (0% Pass Rate)")
+                
+                with r2_c2:
+                    if raw_data["Fail Days"]:
+                        fig_fail = px.histogram(x=raw_data["Fail Days"], nbins=20, title="Distribution: Days to Fail",
+                                                labels={'x': 'Days'}, color_discrete_sequence=['#D55E00']) 
+                        fig_fail.update_layout(height=350)
+                        st.plotly_chart(fig_fail, use_container_width=True)
+                    else:
+                        st.info("ℹ️ No Fail Data available (0% Fail Rate)")
+                
+                # --- ROW 3: WIN STREAKS + LOSS STREAKS ---
+                r3_c1, r3_c2 = st.columns(2)
+                
+                with r3_c1:
+                    fig_win = px.histogram(x=raw_data["Win Streaks"], nbins=20, title="Distribution: Max Win Streaks",
+                                            labels={'x': 'Streak Count'}, color_discrete_sequence=['#009E73']) 
+                    fig_win.update_layout(height=350)
+                    st.plotly_chart(fig_win, use_container_width=True)
+                
+                with r3_c2:
+                    fig_loss = px.histogram(x=raw_data["Loss Streaks"], nbins=20, title="Distribution: Max Loss Streaks",
+                                            labels={'x': 'Streak Count'}, color_discrete_sequence=['#E69F00']) 
+                    fig_loss.update_layout(height=350)
+                    st.plotly_chart(fig_loss, use_container_width=True)
+
                 unique_sims = df_viz.groupby('SimID')['Status'].first()
-                st.caption(f"Visualizing {sel_sim_count} paths (Left) vs. Statistical Distribution of {num_simulations} runs (Right).")
+                st.caption(f"Visualizing {sel_sim_count} paths vs. Full Distribution of {num_simulations} runs.")
 
     except ValueError:
         st.error("⚠️ Please check your input format in the sidebar first.")
