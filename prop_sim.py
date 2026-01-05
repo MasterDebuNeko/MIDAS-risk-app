@@ -23,7 +23,8 @@ if 'sim_params' not in st.session_state:
 
 # --- Header ---
 st.title("🛡️ Prop Firm Simulator")
-st.markdown("Analyze **Pass**, **Time**, **Failure**, **Streaks**, and **Risk of Ruin**.")
+# ✅ Refined Header Description
+st.markdown("**Monte Carlo Analysis: Probability, Efficiency, and Risk Metrics.**")
 
 # --- Sidebar Inputs ---
 st.sidebar.header("⚙️ Settings")
@@ -167,7 +168,7 @@ def run_monte_carlo(risk_val, trades_day_val):
     return {
         "Risk ($)": risk_val, "Risk (%)": risk_percent, "Trades/Day": trades_day_val,
         "Pass Rate (%)": (pass_count / num_simulations) * 100,
-        "Fail Rate (%)": (fail_count / num_simulations) * 100, # ✅ Renamed
+        "Fail Rate (%)": (fail_count / num_simulations) * 100,
         "Timeout Rate (%)": (timeout_count / num_simulations) * 100,
         
         "Avg Days Pass": round(avg_days_pass, 1),
@@ -270,7 +271,7 @@ with tab1:
             df_summary = pd.DataFrame(results_summary)
             cols = ["Risk ($)", "Risk (%)", "Trades/Day", 
                     "Pass Rate (%)", "Avg Days Pass", "Median Days Pass", 
-                    "Fail Rate (%)", "Avg Days Fail", "Median Days Fail", # ✅ Renamed
+                    "Fail Rate (%)", "Avg Days Fail", "Median Days Fail", 
                     "Timeout Rate (%)", "Avg Max Win Streak",
                     "Avg Max Loss Streak", "Worst Case Streak (95%)"]
             st.session_state.sim_results = df_summary[cols]
@@ -300,7 +301,7 @@ with tab1:
                                     x=heatmap_pass.columns, y=heatmap_pass.index, text_auto=".1f", aspect="auto", color_continuous_scale="Blues")
             fig_pass.update_yaxes(dtick=1)
             st.plotly_chart(fig_pass, use_container_width=True)
-            st.caption("🟦 **Maximize this.** Darker Blue = Higher Probability.")
+            st.caption("🟦 **Goal: Maximize.** Darker Blue = Higher probability of success.")
 
         with col2:
             st.subheader("⏳ 2. Median Days to Pass")
@@ -309,19 +310,20 @@ with tab1:
                                     x=heatmap_days.columns, y=heatmap_days.index, text_auto=".1f", aspect="auto", color_continuous_scale="Purples")
             fig_days.update_yaxes(dtick=1)
             st.plotly_chart(fig_days, use_container_width=True)
-            st.caption("🟪 **Realistic Speed.** 50% of traders pass within this time.")
+            # ✅ Refined Caption
+            st.caption("🟪 **Efficiency.** Median duration. 50% of successful runs pass within this time.")
 
         # ROW 2: Failure Zone
         col3, col4 = st.columns(2)
         with col3:
-            # ✅ Updated Title: Fail Rate
             st.subheader("💥 3. Fail Rate (%)")
             heatmap_fail = df_summary.pivot(index="Trades/Day", columns="Risk ($)", values="Fail Rate (%)")
             fig_fail = px.imshow(heatmap_fail, labels=dict(x="Risk ($)", y="Trades/Day", color="Fail %"),
                                     x=heatmap_fail.columns, y=heatmap_fail.index, text_auto=".1f", aspect="auto", color_continuous_scale="Reds")
             fig_fail.update_yaxes(dtick=1)
             st.plotly_chart(fig_fail, use_container_width=True)
-            st.caption("🟥 **Minimize this.** High Red = Risk is too high.")
+            # ✅ Refined Caption
+            st.caption("🟥 **Goal: Minimize.** Darker Red = High Risk. (0% = Safe/No failures).")
 
         with col4:
             st.subheader("📉 4. Median Days to Fail")
@@ -330,7 +332,8 @@ with tab1:
                                     x=heatmap_dfail.columns, y=heatmap_dfail.index, text_auto=".1f", aspect="auto", color_continuous_scale="BuGn")
             fig_dfail.update_yaxes(dtick=1)
             st.plotly_chart(fig_dfail, use_container_width=True)
-            st.caption("🟩 **Survival Time (Median).** 50% of failures happen by this day.")
+            # ✅ Refined Caption
+            st.caption("🟩 **Survival.** Low = Fast Ruin, High = Slow Bleed. (0 = No failures occurred).")
 
         # ROW 3: Stagnation & Momentum
         col5, col6 = st.columns(2)
@@ -341,7 +344,7 @@ with tab1:
                                     x=heatmap_timeout.columns, y=heatmap_timeout.index, text_auto=".1f", aspect="auto", color_continuous_scale="Greys")
             fig_timeout.update_yaxes(dtick=1)
             st.plotly_chart(fig_timeout, use_container_width=True)
-            st.caption("⬜ **Too Slow.** High Grey = Playing too safe.")
+            st.caption("⬜ **Goal: Minimize.** High Grey = Strategy is too passive/slow.")
 
         with col6:
             st.subheader("🍀 6. Avg Max Win Streak")
@@ -350,7 +353,7 @@ with tab1:
                                     x=heatmap_wstreak.columns, y=heatmap_wstreak.index, text_auto=".1f", aspect="auto", color_continuous_scale="Greens")
             fig_wstreak.update_yaxes(dtick=1)
             st.plotly_chart(fig_wstreak, use_container_width=True)
-            st.caption("🟩 **Momentum.** Higher is better for morale.")
+            st.caption("🟩 **Momentum.** Higher indicates better consecutive performance.")
 
         # ROW 4: Pain Zone
         col7, col8 = st.columns(2)
@@ -361,7 +364,7 @@ with tab1:
                                     x=heatmap_streak.columns, y=heatmap_streak.index, text_auto=".1f", aspect="auto", color_continuous_scale="Oranges")
             fig_streak.update_yaxes(dtick=1)
             st.plotly_chart(fig_streak, use_container_width=True)
-            st.caption("🟧 **Pain Index.** Average max consecutive losses.")
+            st.caption("🟧 **Pain Index.** Average consecutive losses to endure.")
 
         with col8:
             st.subheader("💀 8. Worst Case Streak (95%)")
@@ -370,7 +373,7 @@ with tab1:
                                     x=heatmap_worst.columns, y=heatmap_worst.index, text_auto=".1f", aspect="auto", color_continuous_scale="YlOrRd")
             fig_worst.update_yaxes(dtick=1)
             st.plotly_chart(fig_worst, use_container_width=True)
-            st.caption("🟥 **Extreme Pain.** 95% of the time, streaks won't exceed this.")
+            st.caption("🟥 **Extreme Risk.** 95% chance loss streak won't exceed this.")
 
         st.divider()
         st.subheader("📋 Comprehensive Performance Metrics")
@@ -384,7 +387,7 @@ with tab1:
                 "Avg Max Win Streak": "{:.1f}", "Avg Max Loss Streak": "{:.1f}", "Worst Case Streak (95%)": "{:.1f}"
             })
             .background_gradient(subset=["Pass Rate (%)"], cmap="Blues")
-            .background_gradient(subset=["Fail Rate (%)"], cmap="Reds") # ✅ Renamed
+            .background_gradient(subset=["Fail Rate (%)"], cmap="Reds")
             .background_gradient(subset=["Timeout Rate (%)"], cmap="Greys")
             .background_gradient(subset=["Avg Days Pass"], cmap="Purples")
             .background_gradient(subset=["Median Days Pass"], cmap="Purples") 
@@ -453,7 +456,6 @@ with tab2:
             with k1:
                 st.metric(label="🔥 Pass Rate", value=f"{stats['Pass Rate (%)']:.1f}%")
             with k2:
-                # ✅ Renamed Label
                 st.metric(label="💥 Fail Rate", value=f"{stats['Fail Rate (%)']:.1f}%")
             with k3:
                 st.metric(label="🐢 Timeout Rate", value=f"{stats['Timeout Rate (%)']:.1f}%")
