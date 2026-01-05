@@ -65,7 +65,7 @@ with st.sidebar.expander("🎲 Simulation Settings", expanded=True):
 # --- Logic Functions ---
 
 def run_monte_carlo(risk_val, trades_day_val):
-    """Deep simulation for Heatmap & Stats (Includes Streak Analysis & 95% Worst Case)"""
+    """Deep simulation for Heatmap & Stats"""
     reward_per_trade = risk_val * reward_ratio
     personal_limit_usd = (daily_limit_r * risk_val) if daily_limit_r > 0 else 0
     
@@ -73,13 +73,11 @@ def run_monte_carlo(risk_val, trades_day_val):
     fail_count = 0
     timeout_count = 0
     
-    total_days_pass = 0
-    total_days_fail = 0
+    all_pass_days = []
+    all_fail_days = []
     
     total_max_con_wins = 0
     total_max_con_losses = 0
-    
-    # Store max loss streak of EACH simulation to calculate percentile later
     all_max_loss_streaks = []
     
     for _ in range(num_simulations):
@@ -88,7 +86,6 @@ def run_monte_carlo(risk_val, trades_day_val):
         status = "In Progress"
         current_dd_limit = account_size - max_total_dd
         
-        # Streak Tracking per Sim
         sim_max_win_streak = 0
         sim_max_loss_streak = 0
         current_win_streak = 0
@@ -100,27 +97,22 @@ def run_monte_carlo(risk_val, trades_day_val):
             for trade in range(trades_day_val):
                 is_win = np.random.rand() < win_rate
                 
-                # Update Streaks
                 if is_win:
                     current_win_streak += 1
                     current_loss_streak = 0
                     if current_win_streak > sim_max_win_streak: sim_max_win_streak = current_win_streak
-                    
                     equity += reward_per_trade
                 else:
                     current_loss_streak += 1
                     current_win_streak = 0
                     if current_loss_streak > sim_max_loss_streak: sim_max_loss_streak = current_loss_streak
-                    
                     equity -= risk_val
                 
-                # Update Trailing DD
                 if equity > high_water_mark:
                     high_water_mark = equity
                     if trailing_type == "Trailing from High Water Mark":
                         current_dd_limit = high_water_mark - max_total_dd
                 
-                # Check Fails
                 if equity <= current_dd_limit:
                     status = "Failed"; break
                 
@@ -131,33 +123,43 @@ def run_monte_carlo(risk_val, trades_day_val):
                 if personal_limit_usd > 0 and current_daily_loss >= personal_limit_usd:
                     break 
 
-                # Check Pass
                 if equity >= (account_size + profit_target):
                     status = "Passed"; break
             
             if status != "In Progress": break
             
-        # Collect Stats
         total_max_con_wins += sim_max_win_streak
         total_max_con_losses += sim_max_loss_streak
         all_max_loss_streaks.append(sim_max_loss_streak)
         
         if status == "Passed":
             pass_count += 1
-            total_days_pass += (day + 1)
+            all_pass_days.append(day + 1)
         elif status == "Failed": 
             fail_count += 1
-            total_days_fail += (day + 1)
+            all_fail_days.append(day + 1)
         else: 
             timeout_count += 1
             
-    # Calculate Statistics
-    avg_days_pass = total_days_pass / pass_count if pass_count > 0 else 0
-    avg_days_fail = total_days_fail / fail_count if fail_count > 0 else 0
+    # --- Calculate Statistics ---
+    
+    if pass_count > 0:
+        avg_days_pass = sum(all_pass_days) / pass_count
+        median_days_pass = np.median(all_pass_days)
+    else:
+        avg_days_pass = 0
+        median_days_pass = 0
+    
+    if fail_count > 0:
+        avg_days_fail = sum(all_fail_days) / fail_count
+        median_days_fail = np.median(all_fail_days)
+    else:
+        avg_days_fail = 0
+        median_days_fail = 0
+        
     avg_max_win_streak = total_max_con_wins / num_simulations
     avg_max_loss_streak = total_max_con_losses / num_simulations
     
-    # Calculate 95th Percentile for Worst Case Loss Streak
     worst_case_95 = np.percentile(all_max_loss_streaks, 95)
     
     risk_percent = (risk_val / account_size) * 100
@@ -165,17 +167,22 @@ def run_monte_carlo(risk_val, trades_day_val):
     return {
         "Risk ($)": risk_val, "Risk (%)": risk_percent, "Trades/Day": trades_day_val,
         "Pass Rate (%)": (pass_count / num_simulations) * 100,
-        "Failed Rate (%)": (fail_count / num_simulations) * 100,
+        "Fail Rate (%)": (fail_count / num_simulations) * 100, # ✅ Renamed
         "Timeout Rate (%)": (timeout_count / num_simulations) * 100,
+        
         "Avg Days Pass": round(avg_days_pass, 1),
+        "Median Days Pass": round(median_days_pass, 1),
+        
         "Avg Days Fail": round(avg_days_fail, 1),
+        "Median Days Fail": round(median_days_fail, 1),
+        
         "Avg Max Win Streak": round(avg_max_win_streak, 1),
         "Avg Max Loss Streak": round(avg_max_loss_streak, 1),
         "Worst Case Streak (95%)": round(worst_case_95, 1)
     }
 
 def run_visualization_sim(risk_val, trades_day_val, n_viz=100):
-    """Detailed simulation for Equity Curve (returns daily data)"""
+    """Detailed simulation for Equity Curve"""
     reward_per_trade = risk_val * reward_ratio
     personal_limit_usd = (daily_limit_r * risk_val) if daily_limit_r > 0 else 0
     
@@ -261,10 +268,9 @@ with tab1:
             
             # Save Results to Session State
             df_summary = pd.DataFrame(results_summary)
-            # Reorder cols for logic
             cols = ["Risk ($)", "Risk (%)", "Trades/Day", 
-                    "Pass Rate (%)", "Avg Days Pass", 
-                    "Failed Rate (%)", "Avg Days Fail",
+                    "Pass Rate (%)", "Avg Days Pass", "Median Days Pass", 
+                    "Fail Rate (%)", "Avg Days Fail", "Median Days Fail", # ✅ Renamed
                     "Timeout Rate (%)", "Avg Max Win Streak",
                     "Avg Max Loss Streak", "Worst Case Streak (95%)"]
             st.session_state.sim_results = df_summary[cols]
@@ -297,19 +303,20 @@ with tab1:
             st.caption("🟦 **Maximize this.** Darker Blue = Higher Probability.")
 
         with col2:
-            st.subheader("⏳ 2. Avg Days to Pass")
-            heatmap_days = df_summary.pivot(index="Trades/Day", columns="Risk ($)", values="Avg Days Pass")
+            st.subheader("⏳ 2. Median Days to Pass")
+            heatmap_days = df_summary.pivot(index="Trades/Day", columns="Risk ($)", values="Median Days Pass")
             fig_days = px.imshow(heatmap_days, labels=dict(x="Risk ($)", y="Trades/Day", color="Days"),
                                     x=heatmap_days.columns, y=heatmap_days.index, text_auto=".1f", aspect="auto", color_continuous_scale="Purples")
             fig_days.update_yaxes(dtick=1)
             st.plotly_chart(fig_days, use_container_width=True)
-            st.caption("🟪 **Lower is Faster.** Lighter Purple = Efficiency.")
+            st.caption("🟪 **Realistic Speed.** 50% of traders pass within this time.")
 
         # ROW 2: Failure Zone
         col3, col4 = st.columns(2)
         with col3:
-            st.subheader("💥 3. Failed Rate (%)")
-            heatmap_fail = df_summary.pivot(index="Trades/Day", columns="Risk ($)", values="Failed Rate (%)")
+            # ✅ Updated Title: Fail Rate
+            st.subheader("💥 3. Fail Rate (%)")
+            heatmap_fail = df_summary.pivot(index="Trades/Day", columns="Risk ($)", values="Fail Rate (%)")
             fig_fail = px.imshow(heatmap_fail, labels=dict(x="Risk ($)", y="Trades/Day", color="Fail %"),
                                     x=heatmap_fail.columns, y=heatmap_fail.index, text_auto=".1f", aspect="auto", color_continuous_scale="Reds")
             fig_fail.update_yaxes(dtick=1)
@@ -317,13 +324,13 @@ with tab1:
             st.caption("🟥 **Minimize this.** High Red = Risk is too high.")
 
         with col4:
-            st.subheader("📉 4. Avg Days to Fail")
-            heatmap_dfail = df_summary.pivot(index="Trades/Day", columns="Risk ($)", values="Avg Days Fail")
+            st.subheader("📉 4. Median Days to Fail")
+            heatmap_dfail = df_summary.pivot(index="Trades/Day", columns="Risk ($)", values="Median Days Fail")
             fig_dfail = px.imshow(heatmap_dfail, labels=dict(x="Risk ($)", y="Trades/Day", color="Days"),
                                     x=heatmap_dfail.columns, y=heatmap_dfail.index, text_auto=".1f", aspect="auto", color_continuous_scale="BuGn")
             fig_dfail.update_yaxes(dtick=1)
             st.plotly_chart(fig_dfail, use_container_width=True)
-            st.caption("🟩 **Survival Time:** Low days = Fast Ruin. High days = Slow Bleed.")
+            st.caption("🟩 **Survival Time (Median).** 50% of failures happen by this day.")
 
         # ROW 3: Stagnation & Momentum
         col5, col6 = st.columns(2)
@@ -368,20 +375,22 @@ with tab1:
         st.divider()
         st.subheader("📋 Comprehensive Performance Metrics")
         
-        # Format table with ALL 8 metrics & Correct Colors
         st.dataframe(
             df_summary.style.format({
                 "Risk ($)": "${:.0f}", "Risk (%)": "{:.2f}%", 
-                "Pass Rate (%)": "{:.1f}%", "Failed Rate (%)": "{:.1f}%", "Timeout Rate (%)": "{:.1f}%",
-                "Avg Days Pass": "{:.1f}", "Avg Days Fail": "{:.1f}",
+                "Pass Rate (%)": "{:.1f}%", "Fail Rate (%)": "{:.1f}%", "Timeout Rate (%)": "{:.1f}%",
+                "Avg Days Pass": "{:.1f}", "Median Days Pass": "{:.1f}",
+                "Avg Days Fail": "{:.1f}", "Median Days Fail": "{:.1f}",
                 "Avg Max Win Streak": "{:.1f}", "Avg Max Loss Streak": "{:.1f}", "Worst Case Streak (95%)": "{:.1f}"
             })
             .background_gradient(subset=["Pass Rate (%)"], cmap="Blues")
-            .background_gradient(subset=["Failed Rate (%)"], cmap="Reds")
+            .background_gradient(subset=["Fail Rate (%)"], cmap="Reds") # ✅ Renamed
             .background_gradient(subset=["Timeout Rate (%)"], cmap="Greys")
             .background_gradient(subset=["Avg Days Pass"], cmap="Purples")
-            .background_gradient(subset=["Avg Days Fail"], cmap="BuGn")      # Matching Heatmap 4
-            .background_gradient(subset=["Avg Max Win Streak"], cmap="Greens") # Matching Heatmap 6
+            .background_gradient(subset=["Median Days Pass"], cmap="Purples") 
+            .background_gradient(subset=["Avg Days Fail"], cmap="BuGn")      
+            .background_gradient(subset=["Median Days Fail"], cmap="BuGn")  
+            .background_gradient(subset=["Avg Max Win Streak"], cmap="Greens") 
             .background_gradient(subset=["Avg Max Loss Streak"], cmap="Oranges")
             .background_gradient(subset=["Worst Case Streak (95%)"], cmap="YlOrRd"),
             use_container_width=True
@@ -435,36 +444,39 @@ with tab2:
             viz_btn = st.button("📸 Generate Curves & Stats", key="btn_viz", use_container_width=True)
             
         if viz_btn:
-            # 1. Calculate Stats (Run Monte Carlo for this single scenario)
             with st.spinner("Calculating Statistics..."):
                 stats = run_monte_carlo(sel_risk, sel_trades)
             
-            # --- TOP ROW (PROBABILITIES - Heatmaps 1, 3, 5) ---
+            # --- TOP ROW (PROBABILITIES) ---
             st.markdown("#### 🎲 Scenario Probabilities")
             k1, k2, k3 = st.columns(3)
             with k1:
-                st.metric(label="🔥 Pass Probability", value=f"{stats['Pass Rate (%)']:.1f}%")
+                st.metric(label="🔥 Pass Rate", value=f"{stats['Pass Rate (%)']:.1f}%")
             with k2:
-                st.metric(label="💥 Failure Probability", value=f"{stats['Failed Rate (%)']:.1f}%")
+                # ✅ Renamed Label
+                st.metric(label="💥 Fail Rate", value=f"{stats['Fail Rate (%)']:.1f}%")
             with k3:
-                st.metric(label="🐢 Timeout Probability", value=f"{stats['Timeout Rate (%)']:.1f}%")
+                st.metric(label="🐢 Timeout Rate", value=f"{stats['Timeout Rate (%)']:.1f}%")
             
             st.divider()
 
-            # --- BOTTOM ROW (DEEP DIVE - Heatmaps 2, 4, 6, 7, 8) ---
-            # Ordered exactly like the remaining heatmaps
+            # --- BOTTOM ROW (DEEP DIVE) ---
             st.markdown("#### 📊 Deep Dive Statistics")
-            m1, m2, m3, m4, m5 = st.columns(5)
+            m1, m2, m3, m4, m5, m6, m7 = st.columns(7)
             with m1:
-                st.metric(label="Avg Days to Pass", value=f"{stats['Avg Days Pass']} Days")
+                st.metric(label="Avg Days Pass", value=f"{stats['Avg Days Pass']}")
             with m2:
-                st.metric(label="Avg Days to Fail", value=f"{stats['Avg Days Fail']} Days")
+                st.metric(label="Median Days Pass", value=f"{stats['Median Days Pass']}")
             with m3:
-                st.metric(label="Avg Max Win Streak", value=f"{stats['Avg Max Win Streak']} Wins")
+                st.metric(label="Avg Days Fail", value=f"{stats['Avg Days Fail']}")
             with m4:
-                st.metric(label="Avg Max Loss Streak", value=f"{stats['Avg Max Loss Streak']} Losses")
+                st.metric(label="Median Days Fail", value=f"{stats['Median Days Fail']}")
             with m5:
-                st.metric(label="Worst Case (95%)", value=f"{stats['Worst Case Streak (95%)']} Losses")
+                st.metric(label="Avg Max Win", value=f"{stats['Avg Max Win Streak']}")
+            with m6:
+                st.metric(label="Avg Max Loss", value=f"{stats['Avg Max Loss Streak']}")
+            with m7:
+                st.metric(label="Worst Case (95%)", value=f"{stats['Worst Case Streak (95%)']}")
             
             st.divider()
 
