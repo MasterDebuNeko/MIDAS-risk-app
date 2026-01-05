@@ -15,6 +15,12 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# --- Initialize Session State (Memory) ---
+if 'sim_results' not in st.session_state:
+    st.session_state.sim_results = None
+if 'sim_params' not in st.session_state:
+    st.session_state.sim_params = None
+
 # --- Header ---
 st.title("🛡️ Prop Firm Simulator")
 st.markdown("Analyze **Pass**, **Time**, **Failure**, and **Timeout** probabilities.")
@@ -185,6 +191,7 @@ tab1, tab2 = st.tabs(["📊 Heatmap Analysis", "📈 Equity Curve Inspector"])
 
 # ================= TAB 1: HEATMAP =================
 with tab1:
+    # Button triggers calculation and SAVES to session_state
     run_btn = st.button("🚀 Run Full Analysis", key="btn_heatmap")
     
     if run_btn:
@@ -209,66 +216,84 @@ with tab1:
                     progress_bar.progress(current_step / total_steps)
             
             status_text.empty(); progress_bar.empty()
+            
+            # Save Results to Session State
             df_summary = pd.DataFrame(results_summary)
             cols = ["Risk ($)", "Risk (%)", "Trades/Day", "Pass Rate (%)", "Failed Rate (%)", "Timeout Rate (%)", "Avg Days"]
-            df_summary = df_summary[cols]
-
-            col1, col2 = st.columns(2)
-            with col1:
-                st.subheader("🔥 1. Pass Rate (%)")
-                heatmap_pass = df_summary.pivot(index="Trades/Day", columns="Risk ($)", values="Pass Rate (%)")
-                fig_pass = px.imshow(heatmap_pass, labels=dict(x="Risk ($)", y="Trades/Day", color="Pass %"),
-                                     x=heatmap_pass.columns, y=heatmap_pass.index, text_auto=".1f", aspect="auto", color_continuous_scale="Blues")
-                fig_pass.update_yaxes(dtick=1)
-                st.plotly_chart(fig_pass, use_container_width=True)
-
-                st.subheader("💥 3. Failed Rate (%)")
-                heatmap_fail = df_summary.pivot(index="Trades/Day", columns="Risk ($)", values="Failed Rate (%)")
-                fig_fail = px.imshow(heatmap_fail, labels=dict(x="Risk ($)", y="Trades/Day", color="Fail %"),
-                                     x=heatmap_fail.columns, y=heatmap_fail.index, text_auto=".1f", aspect="auto", color_continuous_scale="Reds")
-                fig_fail.update_yaxes(dtick=1)
-                st.plotly_chart(fig_fail, use_container_width=True)
-
-            with col2:
-                st.subheader("⏳ 2. Avg Days to Pass")
-                heatmap_days = df_summary.pivot(index="Trades/Day", columns="Risk ($)", values="Avg Days")
-                fig_days = px.imshow(heatmap_days, labels=dict(x="Risk ($)", y="Trades/Day", color="Days"),
-                                     x=heatmap_days.columns, y=heatmap_days.index, text_auto=".1f", aspect="auto", color_continuous_scale="Purples")
-                fig_days.update_yaxes(dtick=1)
-                st.plotly_chart(fig_days, use_container_width=True)
-
-                st.subheader("🐢 4. Timeout Rate (%)")
-                heatmap_timeout = df_summary.pivot(index="Trades/Day", columns="Risk ($)", values="Timeout Rate (%)")
-                fig_timeout = px.imshow(heatmap_timeout, labels=dict(x="Risk ($)", y="Trades/Day", color="Timeout %"),
-                                        x=heatmap_timeout.columns, y=heatmap_timeout.index, text_auto=".1f", aspect="auto", color_continuous_scale="Greys")
-                fig_timeout.update_yaxes(dtick=1)
-                st.plotly_chart(fig_timeout, use_container_width=True)
-
-            st.divider()
-            st.subheader("📋 Comprehensive Performance Metrics")
-            st.dataframe(df_summary.style.format({
-                "Risk ($)": "${:.0f}", "Risk (%)": "{:.2f}%", "Pass Rate (%)": "{:.1f}%",
-                "Failed Rate (%)": "{:.1f}%", "Timeout Rate (%)": "{:.1f}%", "Avg Days": "{:.1f} Days"
-            }).background_gradient(subset=["Pass Rate (%)"], cmap="Blues"), use_container_width=True)
+            st.session_state.sim_results = df_summary[cols]
             
-            # Footer
-            st.markdown("---")
-            st.subheader("⚙️ Simulation Settings Reference")
-            c1, c2, c3 = st.columns(3)
-            with c1:
-                 st.write(f"- Account: **${account_size:,.0f}**")
-                 st.write(f"- Profit Target: **${profit_target:,.0f}**")
-                 st.write(f"- Max Daily Drawdown: **${max_daily_dd:,.0f}**")
-            with c2:
-                 st.write(f"- Win Rate: **{win_rate_input:.1f}%**")
-                 st.write(f"- Risk/Reward: **1:{reward_ratio}**")
-                 st.write(f"- Personal Daily Limit: **{daily_limit_r}R**")
-            with c3:
-                 st.write(f"- Simulations: **{num_simulations:,}** runs")
-                 st.write(f"- Max Days: **{max_days}** days")
-
+            # Save Parameters Snapshot (for Footer Reference)
+            st.session_state.sim_params = {
+                "acc": account_size, "tgt": profit_target, "mdd": max_daily_dd, "mtd": max_total_dd, "type": trailing_type,
+                "win": win_rate_input, "rr": reward_ratio, "r_lim": daily_limit_r, "sims": num_simulations, "days": max_days,
+                "r_in": risk_input, "t_in": trades_input
+            }
+            
         except ValueError:
             st.error("⚠️ Data Error: Please ensure inputs are correct.")
+
+    # --- Render Logic (Always runs if data exists in memory) ---
+    if st.session_state.sim_results is not None:
+        df_summary = st.session_state.sim_results
+        params = st.session_state.sim_params
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            st.subheader("🔥 1. Pass Rate (%)")
+            heatmap_pass = df_summary.pivot(index="Trades/Day", columns="Risk ($)", values="Pass Rate (%)")
+            fig_pass = px.imshow(heatmap_pass, labels=dict(x="Risk ($)", y="Trades/Day", color="Pass %"),
+                                    x=heatmap_pass.columns, y=heatmap_pass.index, text_auto=".1f", aspect="auto", color_continuous_scale="Blues")
+            fig_pass.update_yaxes(dtick=1)
+            st.plotly_chart(fig_pass, use_container_width=True)
+
+            st.subheader("💥 3. Failed Rate (%)")
+            heatmap_fail = df_summary.pivot(index="Trades/Day", columns="Risk ($)", values="Failed Rate (%)")
+            fig_fail = px.imshow(heatmap_fail, labels=dict(x="Risk ($)", y="Trades/Day", color="Fail %"),
+                                    x=heatmap_fail.columns, y=heatmap_fail.index, text_auto=".1f", aspect="auto", color_continuous_scale="Reds")
+            fig_fail.update_yaxes(dtick=1)
+            st.plotly_chart(fig_fail, use_container_width=True)
+
+        with col2:
+            st.subheader("⏳ 2. Avg Days to Pass")
+            heatmap_days = df_summary.pivot(index="Trades/Day", columns="Risk ($)", values="Avg Days")
+            fig_days = px.imshow(heatmap_days, labels=dict(x="Risk ($)", y="Trades/Day", color="Days"),
+                                    x=heatmap_days.columns, y=heatmap_days.index, text_auto=".1f", aspect="auto", color_continuous_scale="Purples")
+            fig_days.update_yaxes(dtick=1)
+            st.plotly_chart(fig_days, use_container_width=True)
+
+            st.subheader("🐢 4. Timeout Rate (%)")
+            heatmap_timeout = df_summary.pivot(index="Trades/Day", columns="Risk ($)", values="Timeout Rate (%)")
+            fig_timeout = px.imshow(heatmap_timeout, labels=dict(x="Risk ($)", y="Trades/Day", color="Timeout %"),
+                                    x=heatmap_timeout.columns, y=heatmap_timeout.index, text_auto=".1f", aspect="auto", color_continuous_scale="Greys")
+            fig_timeout.update_yaxes(dtick=1)
+            st.plotly_chart(fig_timeout, use_container_width=True)
+
+        st.divider()
+        st.subheader("📋 Comprehensive Performance Metrics")
+        st.dataframe(df_summary.style.format({
+            "Risk ($)": "${:.0f}", "Risk (%)": "{:.2f}%", "Pass Rate (%)": "{:.1f}%",
+            "Failed Rate (%)": "{:.1f}%", "Timeout Rate (%)": "{:.1f}%", "Avg Days": "{:.1f} Days"
+        }).background_gradient(subset=["Pass Rate (%)"], cmap="Blues"), use_container_width=True)
+        
+        # Footer (Using Saved Snapshot)
+        st.markdown("---")
+        st.subheader("⚙️ Simulation Settings Reference")
+        if params:
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                    st.write(f"- Account: **${params['acc']:,.0f}**")
+                    st.write(f"- Profit Target: **${params['tgt']:,.0f}**")
+                    st.write(f"- Max Daily Drawdown: **${params['mdd']:,.0f}**")
+            with c2:
+                    st.write(f"- Win Rate: **{params['win']:.1f}%**")
+                    st.write(f"- Risk/Reward: **1:{params['rr']}**")
+                    st.write(f"- Personal Daily Limit: **{params['r_lim']}R**")
+            with c3:
+                    st.write(f"- Simulations: **{params['sims']:,}** runs")
+                    st.write(f"- Max Days: **{params['days']}** days")
+
+    else:
+        st.info("👈 Click 'Run Full Analysis' to start.")
 
 # ================= TAB 2: EQUITY CURVES =================
 with tab2:
@@ -289,9 +314,8 @@ with tab2:
         with c2:
             sel_trades = st.selectbox("Select Trades/Day", t_options)
         with c3:
-            # ✅ Changed to Number Input with 25% Default Logic
+            # 25% Logic Default
             default_lines = int(num_simulations * 0.25)
-            # Ensure at least 1 line
             if default_lines < 1: default_lines = 1
             
             sel_sim_count = st.number_input("No. of Lines", value=default_lines, min_value=1, step=50, help="Default is 25% of Total Simulations")
