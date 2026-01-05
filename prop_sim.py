@@ -16,7 +16,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- Header ---
-st.title("🛡️ Prop Firm Simulator: 4-Dimensional Analysis")
+st.title("🛡️ Prop Firm Simulator")
 st.markdown("Analyze **Pass**, **Time**, **Failure**, and **Timeout** probabilities.")
 
 # --- Sidebar Inputs ---
@@ -225,10 +225,37 @@ if run_btn:
             use_container_width=True
         )
 
+        # --- Parameters Summary (Footer) ---
+        st.markdown("---")
+        st.subheader("⚙️ Simulation Settings Reference")
+        st.write("Use this section to verify input parameters for the results above.")
+        
+        c1, c2, c3 = st.columns(3)
+        with c1:
+             st.markdown("**🏛️ Prop Firm Rules**")
+             st.write(f"- Account: **${account_size:,.0f}**")
+             st.write(f"- Profit Target: **${profit_target:,.0f}**")
+             st.write(f"- Max Daily Drawdown: **${max_daily_dd:,.0f}**")
+             st.write(f"- Max Total Drawdown: **${max_total_dd:,.0f}**")
+             st.write(f"- Type: **{trailing_type}**")
+             
+        with c2:
+             st.markdown("**📊 Trading Stats**")
+             st.write(f"- Win Rate: **{win_rate_input:.1f}%**")
+             st.write(f"- Risk/Reward: **1:{reward_ratio}**")
+             st.write(f"- Personal Daily Limit: **{daily_limit_r}R**")
+             st.write(f"- Simulations: **{num_simulations:,}** runs")
+             st.write(f"- Max Days: **{max_days}** days")
+
+        with c3:
+             st.markdown("**🧪 Scenarios Tested**")
+             st.write("Risk Inputs ($):")
+             st.code(risk_input, language="text")
+             st.write("Trades Inputs (Freq):")
+             st.code(trades_input, language="text")
+
     except ValueError:
         st.error("⚠️ Data Error: Please ensure inputs are correct.")
 
 else:
     st.info("👈 Click 'Run Full Analysis' to start.")
-
-
