@@ -23,7 +23,7 @@ if 'sim_params' not in st.session_state:
 
 # --- Header ---
 st.title("🛡️ Prop Firm Simulator")
-st.markdown("Analyze **Pass**, **Time**, **Failure**, and **Timeout** probabilities.")
+st.markdown("Analyze **Pass**, **Time**, **Failure**, and **Timeout** probabilities with **Advanced Streak Analytics**.")
 
 # --- Sidebar Inputs ---
 st.sidebar.header("⚙️ Settings")
@@ -65,14 +65,19 @@ with st.sidebar.expander("🎲 Simulation Settings", expanded=True):
 # --- Logic Functions ---
 
 def run_monte_carlo(risk_val, trades_day_val):
-    """Fast simulation for Heatmap (returns stats only)"""
+    """Deep simulation for Heatmap & Stats (Includes Streak Analysis)"""
     reward_per_trade = risk_val * reward_ratio
     personal_limit_usd = (daily_limit_r * risk_val) if daily_limit_r > 0 else 0
     
     pass_count = 0
     fail_count = 0
     timeout_count = 0
+    
     total_days_pass = 0
+    total_days_fail = 0
+    
+    total_max_con_wins = 0
+    total_max_con_losses = 0
     
     for _ in range(num_simulations):
         equity = account_size
@@ -80,18 +85,39 @@ def run_monte_carlo(risk_val, trades_day_val):
         status = "In Progress"
         current_dd_limit = account_size - max_total_dd
         
+        # Streak Tracking per Sim
+        sim_max_win_streak = 0
+        sim_max_loss_streak = 0
+        current_win_streak = 0
+        current_loss_streak = 0
+        
         for day in range(max_days):
             daily_start_equity = equity
+            
             for trade in range(trades_day_val):
                 is_win = np.random.rand() < win_rate
-                if is_win: equity += reward_per_trade
-                else: equity -= risk_val
                 
+                # Update Streaks
+                if is_win:
+                    current_win_streak += 1
+                    current_loss_streak = 0
+                    if current_win_streak > sim_max_win_streak: sim_max_win_streak = current_win_streak
+                    
+                    equity += reward_per_trade
+                else:
+                    current_loss_streak += 1
+                    current_win_streak = 0
+                    if current_loss_streak > sim_max_loss_streak: sim_max_loss_streak = current_loss_streak
+                    
+                    equity -= risk_val
+                
+                # Update Trailing DD
                 if equity > high_water_mark:
                     high_water_mark = equity
                     if trailing_type == "Trailing from High Water Mark":
                         current_dd_limit = high_water_mark - max_total_dd
                 
+                # Check Fails
                 if equity <= current_dd_limit:
                     status = "Failed"; break
                 
@@ -102,18 +128,30 @@ def run_monte_carlo(risk_val, trades_day_val):
                 if personal_limit_usd > 0 and current_daily_loss >= personal_limit_usd:
                     break 
 
+                # Check Pass
                 if equity >= (account_size + profit_target):
                     status = "Passed"; break
             
             if status != "In Progress": break
             
+        # Collect Stats
+        total_max_con_wins += sim_max_win_streak
+        total_max_con_losses += sim_max_loss_streak
+        
         if status == "Passed":
             pass_count += 1
             total_days_pass += (day + 1)
-        elif status == "Failed": fail_count += 1
-        else: timeout_count += 1
+        elif status == "Failed": 
+            fail_count += 1
+            total_days_fail += (day + 1)
+        else: 
+            timeout_count += 1
             
-    avg_days = total_days_pass / pass_count if pass_count > 0 else 0
+    # Calculate Averages
+    avg_days_pass = total_days_pass / pass_count if pass_count > 0 else 0
+    avg_days_fail = total_days_fail / fail_count if fail_count > 0 else 0
+    avg_max_win_streak = total_max_con_wins / num_simulations
+    avg_max_loss_streak = total_max_con_losses / num_simulations
     risk_percent = (risk_val / account_size) * 100
     
     return {
@@ -121,7 +159,10 @@ def run_monte_carlo(risk_val, trades_day_val):
         "Pass Rate (%)": (pass_count / num_simulations) * 100,
         "Failed Rate (%)": (fail_count / num_simulations) * 100,
         "Timeout Rate (%)": (timeout_count / num_simulations) * 100,
-        "Avg Days": round(avg_days, 1)
+        "Avg Days Pass": round(avg_days_pass, 1),
+        "Avg Days Fail": round(avg_days_fail, 1),
+        "Avg Max Win Streak": round(avg_max_win_streak, 1),
+        "Avg Max Loss Streak": round(avg_max_loss_streak, 1)
     }
 
 def run_visualization_sim(risk_val, trades_day_val, n_viz=100):
@@ -134,10 +175,9 @@ def run_visualization_sim(risk_val, trades_day_val, n_viz=100):
     for sim_id in range(n_viz):
         equity = account_size
         high_water_mark = account_size
-        status = "Timeout" # Default if ends without pass/fail
+        status = "Timeout" 
         current_dd_limit = account_size - max_total_dd
         
-        # Start with Day 0
         curve = [{"Day": 0, "Equity": account_size, "SimID": sim_id, "Status": "In Progress"}]
         
         for day in range(1, max_days + 1):
@@ -149,13 +189,11 @@ def run_visualization_sim(risk_val, trades_day_val, n_viz=100):
                 if is_win: equity += reward_per_trade
                 else: equity -= risk_val
                 
-                # Trailing DD Update
                 if equity > high_water_mark:
                     high_water_mark = equity
                     if trailing_type == "Trailing from High Water Mark":
                         current_dd_limit = high_water_mark - max_total_dd
                 
-                # Check Fails
                 if equity <= current_dd_limit:
                     status = "Failed"; day_status = "Failed"; break
                 
@@ -163,21 +201,17 @@ def run_visualization_sim(risk_val, trades_day_val, n_viz=100):
                 if current_daily_loss >= max_daily_dd:
                     status = "Failed"; day_status = "Failed"; break
                 
-                # Check Personal Limit
                 if personal_limit_usd > 0 and current_daily_loss >= personal_limit_usd:
                     break 
 
-                # Check Pass
                 if equity >= (account_size + profit_target):
                     status = "Passed"; day_status = "Passed"; break
             
-            # Record Day End
             curve.append({"Day": day, "Equity": equity, "SimID": sim_id, "Status": status})
             
             if day_status != "In Progress":
                 break
         
-        # Update status for the whole curve based on final outcome
         final_status = curve[-1]["Status"]
         for point in curve:
             point["Status"] = final_status
@@ -191,7 +225,6 @@ tab1, tab2 = st.tabs(["📊 Heatmap Analysis", "📈 Equity Curve Inspector"])
 
 # ================= TAB 1: HEATMAP =================
 with tab1:
-    # Button triggers calculation and SAVES to session_state
     run_btn = st.button("🚀 Run Full Analysis", key="btn_heatmap")
     
     if run_btn:
@@ -219,7 +252,9 @@ with tab1:
             
             # Save Results to Session State
             df_summary = pd.DataFrame(results_summary)
-            cols = ["Risk ($)", "Risk (%)", "Trades/Day", "Pass Rate (%)", "Failed Rate (%)", "Timeout Rate (%)", "Avg Days"]
+            # Reorder cols
+            cols = ["Risk ($)", "Risk (%)", "Trades/Day", "Pass Rate (%)", "Failed Rate (%)", "Timeout Rate (%)", 
+                    "Avg Days Pass", "Avg Days Fail", "Avg Max Win Streak", "Avg Max Loss Streak"]
             st.session_state.sim_results = df_summary[cols]
             
             # Save Parameters Snapshot
@@ -232,7 +267,7 @@ with tab1:
         except ValueError:
             st.error("⚠️ Data Error: Please ensure inputs are correct.")
 
-    # --- Render Logic (Always runs if data exists in memory) ---
+    # --- Render Logic ---
     if st.session_state.sim_results is not None:
         df_summary = st.session_state.sim_results
         params = st.session_state.sim_params
@@ -255,7 +290,7 @@ with tab1:
 
         with col2:
             st.subheader("⏳ 2. Avg Days to Pass")
-            heatmap_days = df_summary.pivot(index="Trades/Day", columns="Risk ($)", values="Avg Days")
+            heatmap_days = df_summary.pivot(index="Trades/Day", columns="Risk ($)", values="Avg Days Pass")
             fig_days = px.imshow(heatmap_days, labels=dict(x="Risk ($)", y="Trades/Day", color="Days"),
                                     x=heatmap_days.columns, y=heatmap_days.index, text_auto=".1f", aspect="auto", color_continuous_scale="Purples")
             fig_days.update_yaxes(dtick=1)
@@ -271,20 +306,18 @@ with tab1:
         st.divider()
         st.subheader("📋 Comprehensive Performance Metrics")
         
-        # Apply Multiple Gradients to match Heatmaps
+        # Format table with new columns
         st.dataframe(
             df_summary.style.format({
-                "Risk ($)": "${:.0f}", 
-                "Risk (%)": "{:.2f}%", 
-                "Pass Rate (%)": "{:.1f}%",
-                "Failed Rate (%)": "{:.1f}%",
-                "Timeout Rate (%)": "{:.1f}%",
-                "Avg Days": "{:.1f} Days"
+                "Risk ($)": "${:.0f}", "Risk (%)": "{:.2f}%", 
+                "Pass Rate (%)": "{:.1f}%", "Failed Rate (%)": "{:.1f}%", "Timeout Rate (%)": "{:.1f}%",
+                "Avg Days Pass": "{:.1f}", "Avg Days Fail": "{:.1f}",
+                "Avg Max Win Streak": "{:.1f}", "Avg Max Loss Streak": "{:.1f}"
             })
-            .background_gradient(subset=["Pass Rate (%)"], cmap="Blues")    # Match Heatmap 1
-            .background_gradient(subset=["Failed Rate (%)"], cmap="Reds")   # Match Heatmap 3
-            .background_gradient(subset=["Timeout Rate (%)"], cmap="Greys") # Match Heatmap 4
-            .background_gradient(subset=["Avg Days"], cmap="Purples"),      # Match Heatmap 2
+            .background_gradient(subset=["Pass Rate (%)"], cmap="Blues")
+            .background_gradient(subset=["Failed Rate (%)"], cmap="Reds")
+            .background_gradient(subset=["Timeout Rate (%)"], cmap="Greys")
+            .background_gradient(subset=["Avg Days Pass"], cmap="Purples"),
             use_container_width=True
         )
         
@@ -311,15 +344,14 @@ with tab1:
 # ================= TAB 2: EQUITY CURVES =================
 with tab2:
     st.markdown("### 📈 Visualize Specific Scenario")
-    st.info("Select parameters to visualize random equity curves.")
+    st.info("Select parameters to visualize random equity curves and detailed stats.")
     
     try:
-        # Parse inputs again for dropdowns
+        # Parse inputs
         r_options = [float(x.strip()) for x in risk_input.split(',')]
         t_options = [int(x.strip()) for x in trades_input.split(',')]
         r_options.sort(); t_options.sort()
         
-        # Layout with 4 columns for inputs + button
         c1, c2, c3, c4 = st.columns([1, 1, 1, 1.5])
         
         with c1:
@@ -327,43 +359,55 @@ with tab2:
         with c2:
             sel_trades = st.selectbox("Select Trades/Day", t_options)
         with c3:
-            # 25% Logic Default
             default_lines = int(num_simulations * 0.25)
             if default_lines < 1: default_lines = 1
-            
             sel_sim_count = st.number_input("No. of Lines", value=default_lines, min_value=1, step=50, help="Default is 25% of Total Simulations")
 
         with c4:
-            st.write("") # Spacer for alignment
             st.write("")
-            viz_btn = st.button("📸 Generate Curves", key="btn_viz", use_container_width=True)
+            st.write("")
+            viz_btn = st.button("📸 Generate Curves & Stats", key="btn_viz", use_container_width=True)
             
         if viz_btn:
-            with st.spinner(f"Simulating {sel_sim_count} runs for Risk ${sel_risk}, Trades {sel_trades}..."):
-                # Use user-selected sim count
+            # 1. Calculate Stats (Run Monte Carlo for this single scenario)
+            with st.spinner("Calculating Statistics..."):
+                stats = run_monte_carlo(sel_risk, sel_trades)
+            
+            # 2. Display Metric Cards (like the image)
+            st.markdown("#### 📊 Scenario Statistics")
+            m1, m2, m3, m4 = st.columns(4)
+            with m1:
+                st.metric(label="Avg Days to Failure", value=f"{stats['Avg Days Fail']} Days")
+            with m2:
+                st.metric(label="Avg Max Wins Streak", value=f"{stats['Avg Max Win Streak']} Wins")
+            with m3:
+                st.metric(label="Avg Max Losses Streak", value=f"{stats['Avg Max Loss Streak']} Losses")
+            with m4:
+                st.metric(label="Avg Days to Target", value=f"{stats['Avg Days Pass']} Days")
+            
+            st.divider()
+
+            # 3. Generate Curves
+            with st.spinner(f"Simulating {sel_sim_count} runs..."):
                 df_viz = run_visualization_sim(sel_risk, sel_trades, n_viz=sel_sim_count)
                 
-                # Colorblind Safe Palette (Okabe & Ito style)
                 color_map = {
                     "Passed": "#0072B2",  # Blue
-                    "Failed": "#D55E00",  # Vermilion (Red-Orange)
+                    "Failed": "#D55E00",  # Vermilion
                     "Timeout": "#B6B6B6"  # Light Grey
                 }
                 
-                # Plot
                 fig = px.line(df_viz, x="Day", y="Equity", color="Status", line_group="SimID",
                               color_discrete_map=color_map,
                               title=f"Equity Curves: Risk ${sel_risk} | {sel_trades} Trades/Day ({sel_sim_count} Samples)")
                 
-                # Add Reference Lines
                 fig.add_hline(y=account_size, line_dash="dash", line_color="black", annotation_text="Start")
-                fig.add_hline(y=account_size + profit_target, line_dash="dot", line_color="#009E73", annotation_text="Target") # Greenish
+                fig.add_hline(y=account_size + profit_target, line_dash="dot", line_color="#009E73", annotation_text="Target")
                 
                 fig.update_traces(opacity=0.5, line=dict(width=1))
                 fig.update_layout(height=600)
                 st.plotly_chart(fig, use_container_width=True)
                 
-                # Stats for this specific batch
                 unique_sims = df_viz.groupby('SimID')['Status'].first()
                 batch_pass = (unique_sims == 'Passed').sum()
                 batch_pass_rate = (batch_pass / len(unique_sims)) * 100
@@ -371,4 +415,3 @@ with tab2:
 
     except ValueError:
         st.error("⚠️ Please check your input format in the sidebar first.")
-
