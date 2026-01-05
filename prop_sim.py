@@ -23,7 +23,7 @@ if 'sim_params' not in st.session_state:
 
 # --- Header ---
 st.title("🛡️ Prop Firm Simulator")
-st.markdown("Analyze **Pass**, **Time**, **Failure**, and **Timeout** probabilities with **Advanced Streak Analytics**.")
+st.markdown("Analyze **Pass**, **Time**, **Failure**, **Timeout**, and **Psychological Stats**.")
 
 # --- Sidebar Inputs ---
 st.sidebar.header("⚙️ Settings")
@@ -273,6 +273,8 @@ with tab1:
         params = st.session_state.sim_params
         
         col1, col2 = st.columns(2)
+        
+        # ROW 1: Pass & Days to Pass
         with col1:
             st.subheader("🔥 1. Pass Rate (%)")
             heatmap_pass = df_summary.pivot(index="Trades/Day", columns="Risk ($)", values="Pass Rate (%)")
@@ -280,13 +282,6 @@ with tab1:
                                     x=heatmap_pass.columns, y=heatmap_pass.index, text_auto=".1f", aspect="auto", color_continuous_scale="Blues")
             fig_pass.update_yaxes(dtick=1)
             st.plotly_chart(fig_pass, use_container_width=True)
-
-            st.subheader("💥 3. Failed Rate (%)")
-            heatmap_fail = df_summary.pivot(index="Trades/Day", columns="Risk ($)", values="Failed Rate (%)")
-            fig_fail = px.imshow(heatmap_fail, labels=dict(x="Risk ($)", y="Trades/Day", color="Fail %"),
-                                    x=heatmap_fail.columns, y=heatmap_fail.index, text_auto=".1f", aspect="auto", color_continuous_scale="Reds")
-            fig_fail.update_yaxes(dtick=1)
-            st.plotly_chart(fig_fail, use_container_width=True)
 
         with col2:
             st.subheader("⏳ 2. Avg Days to Pass")
@@ -296,12 +291,43 @@ with tab1:
             fig_days.update_yaxes(dtick=1)
             st.plotly_chart(fig_days, use_container_width=True)
 
+        # ROW 2: Failed & Timeout
+        col3, col4 = st.columns(2)
+        with col3:
+            st.subheader("💥 3. Failed Rate (%)")
+            heatmap_fail = df_summary.pivot(index="Trades/Day", columns="Risk ($)", values="Failed Rate (%)")
+            fig_fail = px.imshow(heatmap_fail, labels=dict(x="Risk ($)", y="Trades/Day", color="Fail %"),
+                                    x=heatmap_fail.columns, y=heatmap_fail.index, text_auto=".1f", aspect="auto", color_continuous_scale="Reds")
+            fig_fail.update_yaxes(dtick=1)
+            st.plotly_chart(fig_fail, use_container_width=True)
+
+        with col4:
             st.subheader("🐢 4. Timeout Rate (%)")
             heatmap_timeout = df_summary.pivot(index="Trades/Day", columns="Risk ($)", values="Timeout Rate (%)")
             fig_timeout = px.imshow(heatmap_timeout, labels=dict(x="Risk ($)", y="Trades/Day", color="Timeout %"),
                                     x=heatmap_timeout.columns, y=heatmap_timeout.index, text_auto=".1f", aspect="auto", color_continuous_scale="Greys")
             fig_timeout.update_yaxes(dtick=1)
             st.plotly_chart(fig_timeout, use_container_width=True)
+
+        # ROW 3: Psychology & Failure Time
+        col5, col6 = st.columns(2)
+        with col5:
+            st.subheader("🥶 5. Avg Max Loss Streak")
+            heatmap_streak = df_summary.pivot(index="Trades/Day", columns="Risk ($)", values="Avg Max Loss Streak")
+            fig_streak = px.imshow(heatmap_streak, labels=dict(x="Risk ($)", y="Trades/Day", color="Losses"),
+                                    x=heatmap_streak.columns, y=heatmap_streak.index, text_auto=".1f", aspect="auto", color_continuous_scale="Oranges")
+            fig_streak.update_yaxes(dtick=1)
+            st.plotly_chart(fig_streak, use_container_width=True)
+            st.caption("🟧 **Pain Index:** How many consecutive losses you must endure on average.")
+
+        with col6:
+            st.subheader("💀 6. Avg Days to Fail")
+            heatmap_dfail = df_summary.pivot(index="Trades/Day", columns="Risk ($)", values="Avg Days Fail")
+            fig_dfail = px.imshow(heatmap_dfail, labels=dict(x="Risk ($)", y="Trades/Day", color="Days"),
+                                    x=heatmap_dfail.columns, y=heatmap_dfail.index, text_auto=".1f", aspect="auto", color_continuous_scale="Teal")
+            fig_dfail.update_yaxes(dtick=1)
+            st.plotly_chart(fig_dfail, use_container_width=True)
+            st.caption("🟦 **Survival Time:** Lower days = Aggressive/Gambling. Higher days = Slow Bleed.")
 
         st.divider()
         st.subheader("📋 Comprehensive Performance Metrics")
@@ -317,7 +343,9 @@ with tab1:
             .background_gradient(subset=["Pass Rate (%)"], cmap="Blues")
             .background_gradient(subset=["Failed Rate (%)"], cmap="Reds")
             .background_gradient(subset=["Timeout Rate (%)"], cmap="Greys")
-            .background_gradient(subset=["Avg Days Pass"], cmap="Purples"),
+            .background_gradient(subset=["Avg Days Pass"], cmap="Purples")
+            .background_gradient(subset=["Avg Max Loss Streak"], cmap="Oranges")
+            .background_gradient(subset=["Avg Days Fail"], cmap="Teal"),
             use_container_width=True
         )
         
@@ -373,8 +401,20 @@ with tab2:
             with st.spinner("Calculating Statistics..."):
                 stats = run_monte_carlo(sel_risk, sel_trades)
             
-            # 2. Display Metric Cards (like the image)
-            st.markdown("#### 📊 Scenario Statistics")
+            # --- ✅ NEW: TOP ROW (PROBABILITIES) ---
+            st.markdown("#### 🎲 Scenario Probabilities")
+            k1, k2, k3 = st.columns(3)
+            with k1:
+                st.metric(label="🔥 Pass Probability", value=f"{stats['Pass Rate (%)']:.1f}%")
+            with k2:
+                st.metric(label="💥 Failure Probability", value=f"{stats['Failed Rate (%)']:.1f}%")
+            with k3:
+                st.metric(label="🐢 Timeout Probability", value=f"{stats['Timeout Rate (%)']:.1f}%")
+            
+            st.divider()
+
+            # --- BOTTOM ROW (DETAILED STATS) ---
+            st.markdown("#### 📊 Deep Dive Statistics")
             m1, m2, m3, m4 = st.columns(4)
             with m1:
                 st.metric(label="Avg Days to Failure", value=f"{stats['Avg Days Fail']} Days")
