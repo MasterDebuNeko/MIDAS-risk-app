@@ -294,6 +294,7 @@ with tab1:
                                     x=heatmap_pass.columns, y=heatmap_pass.index, text_auto=".1f", aspect="auto", color_continuous_scale="Blues")
             fig_pass.update_yaxes(dtick=1)
             st.plotly_chart(fig_pass, use_container_width=True)
+            st.caption("🟦 **Maximize this.** Darker Blue = Higher Probability.")
 
         with col2:
             st.subheader("⏳ 2. Avg Days to Pass")
@@ -302,6 +303,7 @@ with tab1:
                                     x=heatmap_days.columns, y=heatmap_days.index, text_auto=".1f", aspect="auto", color_continuous_scale="Purples")
             fig_days.update_yaxes(dtick=1)
             st.plotly_chart(fig_days, use_container_width=True)
+            st.caption("🟪 **Lower is Faster.** Lighter Purple = Efficiency.")
 
         # ROW 2: Failure Zone
         col3, col4 = st.columns(2)
@@ -312,16 +314,16 @@ with tab1:
                                     x=heatmap_fail.columns, y=heatmap_fail.index, text_auto=".1f", aspect="auto", color_continuous_scale="Reds")
             fig_fail.update_yaxes(dtick=1)
             st.plotly_chart(fig_fail, use_container_width=True)
+            st.caption("🟥 **Minimize this.** High Red = Risk is too high.")
 
         with col4:
             st.subheader("📉 4. Avg Days to Fail")
             heatmap_dfail = df_summary.pivot(index="Trades/Day", columns="Risk ($)", values="Avg Days Fail")
-            # "BuGn" is Blue-Green, distinct from others
             fig_dfail = px.imshow(heatmap_dfail, labels=dict(x="Risk ($)", y="Trades/Day", color="Days"),
                                     x=heatmap_dfail.columns, y=heatmap_dfail.index, text_auto=".1f", aspect="auto", color_continuous_scale="BuGn")
             fig_dfail.update_yaxes(dtick=1)
             st.plotly_chart(fig_dfail, use_container_width=True)
-            st.caption("🟩 **Survival Time:** Low days = Risk of Ruin is fast. High days = Slow Bleed.")
+            st.caption("🟩 **Survival Time:** Low days = Fast Ruin. High days = Slow Bleed.")
 
         # ROW 3: Stagnation & Momentum
         col5, col6 = st.columns(2)
@@ -332,6 +334,7 @@ with tab1:
                                     x=heatmap_timeout.columns, y=heatmap_timeout.index, text_auto=".1f", aspect="auto", color_continuous_scale="Greys")
             fig_timeout.update_yaxes(dtick=1)
             st.plotly_chart(fig_timeout, use_container_width=True)
+            st.caption("⬜ **Too Slow.** High Grey = Playing too safe.")
 
         with col6:
             st.subheader("🍀 6. Avg Max Win Streak")
@@ -340,7 +343,7 @@ with tab1:
                                     x=heatmap_wstreak.columns, y=heatmap_wstreak.index, text_auto=".1f", aspect="auto", color_continuous_scale="Greens")
             fig_wstreak.update_yaxes(dtick=1)
             st.plotly_chart(fig_wstreak, use_container_width=True)
-            st.caption("🟩 **Momentum:** Average consecutive wins. Higher is better for morale.")
+            st.caption("🟩 **Momentum.** Higher is better for morale.")
 
         # ROW 4: Pain Zone
         col7, col8 = st.columns(2)
@@ -351,7 +354,7 @@ with tab1:
                                     x=heatmap_streak.columns, y=heatmap_streak.index, text_auto=".1f", aspect="auto", color_continuous_scale="Oranges")
             fig_streak.update_yaxes(dtick=1)
             st.plotly_chart(fig_streak, use_container_width=True)
-            st.caption("🟧 **Average Pain:** Average max consecutive losses per run.")
+            st.caption("🟧 **Pain Index.** Average max consecutive losses.")
 
         with col8:
             st.subheader("💀 8. Worst Case Streak (95%)")
@@ -360,7 +363,7 @@ with tab1:
                                     x=heatmap_worst.columns, y=heatmap_worst.index, text_auto=".1f", aspect="auto", color_continuous_scale="YlOrRd")
             fig_worst.update_yaxes(dtick=1)
             st.plotly_chart(fig_worst, use_container_width=True)
-            st.caption("🟥 **Extreme Pain:** 95% of the time, streaks won't exceed this.")
+            st.caption("🟥 **Extreme Pain.** 95% of the time, streaks won't exceed this.")
 
         st.divider()
         st.subheader("📋 Comprehensive Performance Metrics")
@@ -436,7 +439,7 @@ with tab2:
             with st.spinner("Calculating Statistics..."):
                 stats = run_monte_carlo(sel_risk, sel_trades)
             
-            # --- TOP ROW (PROBABILITIES) ---
+            # --- TOP ROW (PROBABILITIES - Heatmaps 1, 3, 5) ---
             st.markdown("#### 🎲 Scenario Probabilities")
             k1, k2, k3 = st.columns(3)
             with k1:
@@ -448,17 +451,20 @@ with tab2:
             
             st.divider()
 
-            # --- BOTTOM ROW (DETAILED STATS) ---
+            # --- BOTTOM ROW (DEEP DIVE - Heatmaps 2, 4, 6, 7, 8) ---
+            # Ordered exactly like the remaining heatmaps
             st.markdown("#### 📊 Deep Dive Statistics")
-            m1, m2, m3, m4 = st.columns(4)
+            m1, m2, m3, m4, m5 = st.columns(5)
             with m1:
-                st.metric(label="Avg Max Wins Streak", value=f"{stats['Avg Max Win Streak']} Wins")
+                st.metric(label="Avg Days to Pass", value=f"{stats['Avg Days Pass']} Days")
             with m2:
-                st.metric(label="Avg Max Losses Streak", value=f"{stats['Avg Max Loss Streak']} Losses")
+                st.metric(label="Avg Days to Fail", value=f"{stats['Avg Days Fail']} Days")
             with m3:
-                st.metric(label="💀 Worst Case (95%)", value=f"{stats['Worst Case Streak (95%)']} Losses")
+                st.metric(label="Avg Max Win Streak", value=f"{stats['Avg Max Win Streak']} Wins")
             with m4:
-                st.metric(label="Avg Days to Target", value=f"{stats['Avg Days Pass']} Days")
+                st.metric(label="Avg Max Loss Streak", value=f"{stats['Avg Max Loss Streak']} Losses")
+            with m5:
+                st.metric(label="Worst Case (95%)", value=f"{stats['Worst Case Streak (95%)']} Losses")
             
             st.divider()
 
