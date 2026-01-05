@@ -16,8 +16,8 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- Header ---
-st.title("🛡️ Prop Firm Simulator")
-st.markdown("Analyze **Pass Probability** and **Time Efficiency** for Prop Firm challenges.")
+st.title("🛡️ Prop Firm Simulator: 4-Dimensional Analysis")
+st.markdown("Analyze **Pass**, **Time**, **Failure**, and **Timeout** probabilities.")
 
 # --- Sidebar Inputs ---
 st.sidebar.header("⚙️ Settings")
@@ -38,7 +38,7 @@ with st.sidebar.expander("📊 Trading Parameters", expanded=True):
     
     # 2. Trades Per Day
     st.markdown("**No. of Trades per day**")
-    trades_input = st.text_input("No. of Trades Input", "2, 3, 4", label_visibility="collapsed")
+    trades_input = st.text_input("No. of Trades Input", "2, 3, 4, 5", label_visibility="collapsed")
     st.markdown('<p class="small-font">integers only, separated by comma</p>', unsafe_allow_html=True)
     
     # 3. Risk Scenarios
@@ -50,21 +50,22 @@ with st.sidebar.expander("📊 Trading Parameters", expanded=True):
     # 4. Personal Risk Management
     st.markdown("---")
     st.markdown("🛡️ **Personal Risk Management**")
-    daily_limit_r = st.number_input("Daily Loss Limit (R) (0 = Disabled)", value=2, step=1, help="Ex: Enter 2 means stop trading for the day if loss reaches 2R.")
+    daily_limit_r = st.number_input("Daily Loss Limit (R) (0 = Disabled)", value=0, step=1, help="Ex: Enter 2 means stop trading for the day if loss reaches 2R.")
 
 with st.sidebar.expander("🎲 Simulation Settings", expanded=False):
-    num_simulations = st.number_input("Simulations per Scenario", value=5000, step=100)
+    num_simulations = st.number_input("Simulations per Scenario", value=500, step=100)
     max_days = st.number_input("Max Days to Trade", value=20, step=1)
 
-run_btn = st.sidebar.button("🚀 Run Analysis")
+run_btn = st.sidebar.button("🚀 Run Full Analysis")
 
 # --- Core Logic ---
 def run_monte_carlo(risk_val, trades_day_val):
     reward_per_trade = risk_val * reward_ratio
-    # Calculate Personal Limit in USD based on R
     personal_limit_usd = (daily_limit_r * risk_val) if daily_limit_r > 0 else 0
     
     pass_count = 0
+    fail_count = 0
+    timeout_count = 0
     total_days_pass = 0
     
     for _ in range(num_simulations):
@@ -92,19 +93,17 @@ def run_monte_carlo(risk_val, trades_day_val):
                     if trailing_type == "Trailing from High Water Mark":
                         current_dd_limit = high_water_mark - max_total_dd
                 
-                # Check Failure: Total Drawdown
+                # Check Failure
                 if equity <= current_dd_limit:
                     status = "Failed"
                     break
                 
-                # Check Failure: Daily Drawdown
                 current_daily_loss = daily_start_equity - equity
                 if current_daily_loss >= max_daily_dd:
                     status = "Failed"
                     break
                 
-                # Check Personal Daily Limit (Circuit Breaker)
-                # Logic: Stop trading for the day, preserve capital, continue next day.
+                # Check Personal Limit
                 if personal_limit_usd > 0 and current_daily_loss >= personal_limit_usd:
                     break 
 
@@ -116,28 +115,36 @@ def run_monte_carlo(risk_val, trades_day_val):
             if status != "In Progress":
                 break
         
+        # Tally Results
         if status == "Passed":
             pass_count += 1
             total_days_pass += days_passed
+        elif status == "Failed":
+            fail_count += 1
+        else:
+            timeout_count += 1 # Timed Out
             
+    # Calculate Rates
     pass_rate = (pass_count / num_simulations) * 100
+    fail_rate = (fail_count / num_simulations) * 100
+    timeout_rate = (timeout_count / num_simulations) * 100
     avg_days = total_days_pass / pass_count if pass_count > 0 else 0
     
     return {
         "Risk ($)": risk_val,
         "Trades/Day": trades_day_val,
         "Pass Rate (%)": pass_rate,
+        "Failed Rate (%)": fail_rate,
+        "Timeout Rate (%)": timeout_rate,
         "Avg Days": round(avg_days, 1)
     }
 
 # --- Main Execution ---
 if run_btn:
     try:
-        # Parse Inputs
         risk_list = [float(x.strip()) for x in risk_input.split(',')]
         trades_list = [int(x.strip()) for x in trades_input.split(',')]
         
-        # Sort inputs for consistent axes
         risk_list.sort()
         trades_list.sort()
         
@@ -148,7 +155,6 @@ if run_btn:
         progress_bar = st.progress(0)
         status_text = st.empty()
         
-        # Nested Simulation Loop
         for r_val in risk_list:
             for t_val in trades_list:
                 current_step += 1
@@ -162,63 +168,65 @@ if run_btn:
         
         df_summary = pd.DataFrame(results_summary)
         
-        # --- 1. HEATMAP: Pass Probability ---
-        st.subheader("🔥 1. Probability to Pass (%)")
+        # --- Visualization Section (Heatmaps) ---
         
-        heatmap_prob = df_summary.pivot(index="Trades/Day", columns="Risk ($)", values="Pass Rate (%)")
+        col1, col2 = st.columns(2)
         
-        fig_prob = px.imshow(
-            heatmap_prob,
-            labels=dict(x="Risk Amount ($)", y="No. of Trades/Day", color="Pass Rate (%)"),
-            x=heatmap_prob.columns,
-            y=heatmap_prob.index,
-            text_auto=".1f",
-            aspect="auto",
-            color_continuous_scale="Blues"
-        )
-        fig_prob.update_yaxes(dtick=1) # Ensure Y-axis uses integers
-        st.plotly_chart(fig_prob, use_container_width=True)
-        st.caption("🟦 Darker Blue = Higher Probability (Better)")
+        with col1:
+            # 1. Pass Rate (Blues)
+            st.subheader("🔥 1. Pass Rate (%)")
+            heatmap_pass = df_summary.pivot(index="Trades/Day", columns="Risk ($)", values="Pass Rate (%)")
+            fig_pass = px.imshow(heatmap_pass, labels=dict(x="Risk ($)", y="Trades/Day", color="Pass %"),
+                                 x=heatmap_pass.columns, y=heatmap_pass.index, text_auto=".1f", aspect="auto", color_continuous_scale="Blues")
+            fig_pass.update_yaxes(dtick=1)
+            st.plotly_chart(fig_pass, use_container_width=True)
+            st.caption("🟦 **Maximize this.** Darker Blue = Higher Probability.")
+
+            # 3. Failed Rate (Reds)
+            st.subheader("💥 3. Failed Rate (%)")
+            heatmap_fail = df_summary.pivot(index="Trades/Day", columns="Risk ($)", values="Failed Rate (%)")
+            fig_fail = px.imshow(heatmap_fail, labels=dict(x="Risk ($)", y="Trades/Day", color="Fail %"),
+                                 x=heatmap_fail.columns, y=heatmap_fail.index, text_auto=".1f", aspect="auto", color_continuous_scale="Reds")
+            fig_fail.update_yaxes(dtick=1)
+            st.plotly_chart(fig_fail, use_container_width=True)
+            st.caption("🟥 **Minimize this.** High Red = Risk is too high.")
+
+        with col2:
+            # 2. Avg Days (Purples)
+            st.subheader("⏳ 2. Avg Days to Pass")
+            heatmap_days = df_summary.pivot(index="Trades/Day", columns="Risk ($)", values="Avg Days")
+            fig_days = px.imshow(heatmap_days, labels=dict(x="Risk ($)", y="Trades/Day", color="Days"),
+                                 x=heatmap_days.columns, y=heatmap_days.index, text_auto=".1f", aspect="auto", color_continuous_scale="Purples")
+            fig_days.update_yaxes(dtick=1)
+            st.plotly_chart(fig_days, use_container_width=True)
+            st.caption("🟪 **Lower is Faster.** Lighter Purple = Efficiency.")
+
+            # 4. Timeout Rate (Greys)
+            st.subheader("🐢 4. Timeout Rate (%)")
+            heatmap_timeout = df_summary.pivot(index="Trades/Day", columns="Risk ($)", values="Timeout Rate (%)")
+            fig_timeout = px.imshow(heatmap_timeout, labels=dict(x="Risk ($)", y="Trades/Day", color="Timeout %"),
+                                    x=heatmap_timeout.columns, y=heatmap_timeout.index, text_auto=".1f", aspect="auto", color_continuous_scale="Greys")
+            fig_timeout.update_yaxes(dtick=1)
+            st.plotly_chart(fig_timeout, use_container_width=True)
+            st.caption("⬜ **Too Slow.** High Grey = Playing too safe.")
 
         st.divider()
 
-        # --- 2. HEATMAP: Avg Days ---
-        st.subheader("⏳ 2. Average Days to Pass")
-        
-        heatmap_days = df_summary.pivot(index="Trades/Day", columns="Risk ($)", values="Avg Days")
-        
-        fig_days = px.imshow(
-            heatmap_days,
-            labels=dict(x="Risk Amount ($)", y="No. of Trades/Day", color="Avg Days"),
-            x=heatmap_days.columns,
-            y=heatmap_days.index,
-            text_auto=".1f",
-            aspect="auto",
-            color_continuous_scale="Purples" 
-        )
-        fig_days.update_yaxes(dtick=1) # Ensure Y-axis uses integers
-        st.plotly_chart(fig_days, use_container_width=True)
-        st.caption("🟪 Lighter Purple = Faster Completion (Better) | Darker = Slower")
-
-        st.divider()
-
-        # --- 3. Detailed Table ---
-        st.subheader("📋 Full Details Table")
-        
+        # --- Detailed Table ---
+        st.subheader("📋 Comprehensive Performance Metrics")
         st.dataframe(
             df_summary.style.format({
                 "Risk ($)": "${:.0f}",
                 "Pass Rate (%)": "{:.1f}%",
-                "Avg Days": "{:.1f} Days",
-                "Risk (%)": "{:.2f}%"
+                "Failed Rate (%)": "{:.1f}%",
+                "Timeout Rate (%)": "{:.1f}%",
+                "Avg Days": "{:.1f} Days"
             }).background_gradient(subset=["Pass Rate (%)"], cmap="Blues"),
             use_container_width=True
         )
 
     except ValueError:
-        st.error("⚠️ Data Error: Please ensure Risk contains numbers and Trades contains integers, separated by commas.")
+        st.error("⚠️ Data Error: Please ensure inputs are correct.")
 
 else:
-    st.info("👈 Click 'Run Analysis' to start the simulation.")
-
-
+    st.info("👈 Click 'Run Full Analysis' to start.")
