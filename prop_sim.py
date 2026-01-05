@@ -15,7 +15,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- Initialize Session State (Memory) ---
+# --- Initialize Session State ---
 if 'sim_results' not in st.session_state:
     st.session_state.sim_results = None
 if 'sim_params' not in st.session_state:
@@ -68,11 +68,14 @@ def run_monte_carlo(risk_val, trades_day_val):
     fail_count = 0
     timeout_count = 0
     
+    # --- Collections for Histograms ---
     all_pass_days = []
     all_fail_days = []
     all_final_pnl = []
     all_max_win_streaks = [] 
     all_max_loss_streaks = []
+    
+    # New collections for full mapping
     all_max_dd_usd = []        
     all_timeout_equity = []    
     all_lowest_equity = []     
@@ -157,7 +160,11 @@ def run_monte_carlo(risk_val, trades_day_val):
     median_days_fail = np.median(all_fail_days) if fail_count > 0 else 0
         
     avg_max_win_streak = sum(all_max_win_streaks) / num_simulations
+    median_max_win_streak = np.median(all_max_win_streaks)
+    
     avg_max_loss_streak = sum(all_max_loss_streaks) / num_simulations
+    median_max_loss_streak = np.median(all_max_loss_streaks)
+    
     worst_case_95 = np.percentile(all_max_loss_streaks, 95)
     
     risk_percent = (risk_val / account_size) * 100
@@ -172,17 +179,14 @@ def run_monte_carlo(risk_val, trades_day_val):
         "Avg Days Fail": round(avg_days_fail, 1),
         "Median Days Fail": round(median_days_fail, 1),
         "Avg Max Win Streak": round(avg_max_win_streak, 1),
+        "Median Max Win Streak": round(median_max_win_streak, 1),
         "Avg Max Loss Streak": round(avg_max_loss_streak, 1),
+        "Median Max Loss Streak": round(median_max_loss_streak, 1),
         "Worst Case Streak (95%)": round(worst_case_95, 1),
         "Raw Data": {
-            "PnL": all_final_pnl,
-            "Pass Days": all_pass_days,
-            "Fail Days": all_fail_days,
-            "Win Streaks": all_max_win_streaks,
-            "Loss Streaks": all_max_loss_streaks,
-            "Max DD": all_max_dd_usd,
-            "Timeout Equity": all_timeout_equity,
-            "Lowest Equity": all_lowest_equity
+            "PnL": all_final_pnl, "Pass Days": all_pass_days, "Fail Days": all_fail_days,
+            "Win Streaks": all_max_win_streaks, "Loss Streaks": all_max_loss_streaks,
+            "Max DD": all_max_dd_usd, "Timeout Equity": all_timeout_equity, "Lowest Equity": all_lowest_equity
         }
     }
 
@@ -276,23 +280,43 @@ with tab1:
             st.subheader(title); st.plotly_chart(fig, use_container_width=True); st.caption(caption)
 
         col1, col2 = st.columns(2)
-        with col1: draw_heatmap("Pass Rate (%)", "Blues", "🔥 1. Pass Rate (%)", "🟦 **Goal: Maximize.** Darker Blue = Higher probability of success.")
-        with col2: draw_heatmap("Median Days Pass", "Purples", "⏳ 2. Median Days to Pass", "🟪 **Efficiency.** Median duration. 50% of successful runs pass within this time.")
+        with col1: draw_heatmap("Pass Rate (%)", "Blues", "🔥 1. Pass Rate (%)", "🟦 **Goal: Maximize.** Darker Blue = Higher probability.")
+        with col2: draw_heatmap("Median Days Pass", "Purples", "⏳ 2. Median Days to Pass", "🟪 **Efficiency.** Median duration.")
 
         col3, col4 = st.columns(2)
-        with col3: draw_heatmap("Fail Rate (%)", "Reds", "💥 3. Fail Rate (%)", "🟥 **Goal: Minimize.** Darker Red = High Risk. (0% = Safe/No failures).")
-        with col4: draw_heatmap("Median Days Fail", "BuGn", "📉 4. Median Days to Fail", "🟩 **Survival.** Low = Fast Ruin, High = Slow Bleed. (0 = No failures occurred).")
+        with col3: draw_heatmap("Fail Rate (%)", "Reds", "💥 3. Fail Rate (%)", "🟥 **Goal: Minimize.** Darker Red = High Risk.")
+        with col4: draw_heatmap("Median Days Fail", "BuGn", "📉 4. Median Days to Fail", "🟩 **Survival.** Low = Fast Ruin, High = Slow Bleed.")
 
         col5, col6 = st.columns(2)
-        with col5: draw_heatmap("Timeout Rate (%)", "Greys", "🐢 5. Timeout Rate (%)", "⬜ **Goal: Minimize.** High Grey = Strategy is too passive/slow.")
-        with col6: draw_heatmap("Avg Max Win Streak", "Greens", "🍀 6. Avg Max Win Streak", "🟩 **Momentum.** Higher indicates better consecutive performance.")
+        with col5: draw_heatmap("Timeout Rate (%)", "Greys", "🐢 5. Timeout Rate (%)", "⬜ **Goal: Minimize.** High Grey = Too passive.")
+        with col6: draw_heatmap("Avg Max Win Streak", "Greens", "🍀 6. Avg Max Win Streak", "🟩 **Momentum.** Higher is better.")
 
         col7, col8 = st.columns(2)
-        with col7: draw_heatmap("Avg Max Loss Streak", "Oranges", "🥶 7. Avg Max Loss Streak", "🟧 **Pain Index.** Average consecutive losses to endure.")
-        with col8: draw_heatmap("Worst Case Streak (95%)", "YlOrRd", "💀 8. Worst Case Streak (95%)", "🟥 **Extreme Risk.** 95% chance loss streak won't exceed this.")
+        with col7: draw_heatmap("Avg Max Loss Streak", "Oranges", "🥶 7. Avg Max Loss Streak", "🟧 **Pain Index.** Average consecutive losses.")
+        with col8: draw_heatmap("Worst Case Streak (95%)", "YlOrRd", "💀 8. Worst Case Streak (95%)", "🟥 **Extreme Risk.** 95% chance won't exceed this.")
 
         st.divider(); st.subheader("📋 Comprehensive Performance Metrics")
-        st.dataframe(df_summary.style.format("{:.1f}").background_gradient(cmap="Blues"), use_container_width=True)
+        
+        st.dataframe(
+            df_summary.style.format({
+                "Risk ($)": "${:.0f}", "Risk (%)": "{:.2f}%", 
+                "Pass Rate (%)": "{:.1f}%", "Fail Rate (%)": "{:.1f}%", "Timeout Rate (%)": "{:.1f}%",
+                "Avg Days Pass": "{:.1f}", "Median Days Pass": "{:.1f}",
+                "Avg Days Fail": "{:.1f}", "Median Days Fail": "{:.1f}",
+                "Avg Max Win Streak": "{:.1f}", "Avg Max Loss Streak": "{:.1f}", "Worst Case Streak (95%)": "{:.1f}"
+            })
+            .background_gradient(subset=["Pass Rate (%)"], cmap="Blues")
+            .background_gradient(subset=["Fail Rate (%)"], cmap="Reds")
+            .background_gradient(subset=["Timeout Rate (%)"], cmap="Greys")
+            .background_gradient(subset=["Avg Days Pass"], cmap="Purples")
+            .background_gradient(subset=["Median Days Pass"], cmap="Purples") 
+            .background_gradient(subset=["Avg Days Fail"], cmap="BuGn")      
+            .background_gradient(subset=["Median Days Fail"], cmap="BuGn")  
+            .background_gradient(subset=["Avg Max Win Streak"], cmap="Greens") 
+            .background_gradient(subset=["Avg Max Loss Streak"], cmap="Oranges")
+            .background_gradient(subset=["Worst Case Streak (95%)"], cmap="YlOrRd"),
+            use_container_width=True
+        )
 
     else: st.info("👈 Click 'Run Full Analysis' to start.")
 
@@ -309,6 +333,7 @@ with tab2:
         c1, c2, c3, c4 = st.columns([1, 1, 1, 1.5])
         with c1: sel_risk = st.selectbox("Select Risk ($)", r_options)
         with c2: sel_trades = st.selectbox("Select Trades/Day", t_options)
+        # Default 25% lines, but visual is clearer now
         with c3: sel_sim_count = st.number_input("No. of Lines", value=int(num_simulations*0.25), min_value=1, step=50)
         with c4: 
             st.write(""); st.write("")
@@ -319,21 +344,19 @@ with tab2:
                 stats = run_monte_carlo(sel_risk, sel_trades)
             
             # --- METRICS ---
-            st.markdown("#### 🎲 Scenario Probabilities")
-            k1, k2, k3 = st.columns(3)
+            st.markdown("#### 📊 Scenario Statistics & Probabilities")
+            k1, k2, k3, k4 = st.columns(4)
             with k1: st.metric("🔥 Pass Rate", f"{stats['Pass Rate (%)']:.1f}%")
             with k2: st.metric("💥 Fail Rate", f"{stats['Fail Rate (%)']:.1f}%")
             with k3: st.metric("🐢 Timeout Rate", f"{stats['Timeout Rate (%)']:.1f}%")
+            with k4: st.metric("💀 Worst Case (95%)", f"{stats['Worst Case Streak (95%)']}")
+
+            m1, m2, m3, m4 = st.columns(4)
+            with m1: st.metric("Median Days Pass", f"{stats['Median Days Pass']}", delta=f"Avg: {stats['Avg Days Pass']}", delta_color="off")
+            with m2: st.metric("Median Days Fail", f"{stats['Median Days Fail']}", delta=f"Avg: {stats['Avg Days Fail']}", delta_color="off")
+            with m3: st.metric("Median Win Streak", f"{stats['Median Max Win Streak']}", delta=f"Avg: {stats['Avg Max Win Streak']}", delta_color="off")
+            with m4: st.metric("Median Loss Streak", f"{stats['Median Max Loss Streak']}", delta=f"Avg: {stats['Avg Max Loss Streak']}", delta_color="off")
             
-            st.divider(); st.markdown("#### 📊 Deep Dive Statistics")
-            m1, m2, m3, m4, m5, m6, m7 = st.columns(7)
-            with m1: st.metric("Avg Days Pass", f"{stats['Avg Days Pass']}")
-            with m2: st.metric("Median Days Pass", f"{stats['Median Days Pass']}")
-            with m3: st.metric("Avg Days Fail", f"{stats['Avg Days Fail']}")
-            with m4: st.metric("Median Days Fail", f"{stats['Median Days Fail']}")
-            with m5: st.metric("Avg Max Win", f"{stats['Avg Max Win Streak']}")
-            with m6: st.metric("Avg Max Loss", f"{stats['Avg Max Loss Streak']}")
-            with m7: st.metric("Worst Case (95%)", f"{stats['Worst Case Streak (95%)']}")
             st.divider()
 
             # --- PLOTS ---
@@ -342,69 +365,48 @@ with tab2:
                 raw_data = stats["Raw Data"]
                 color_map = {"Passed": "#0072B2", "Failed": "#D55E00", "Timeout": "#B6B6B6"}
                 
-                # 1. Equity Curve
-                fig_curve = px.line(df_viz, x="Day", y="Equity", color="Status", line_group="SimID", color_discrete_map=color_map, title=f"Equity Curves: {sel_sim_count} Sample Paths")
-                fig_curve.add_hline(y=account_size, line_dash="dash", line_color="black"); fig_curve.add_hline(y=account_size + profit_target, line_dash="dot", line_color="#009E73")
-                fig_curve.update_traces(opacity=0.3, line=dict(width=1)); fig_curve.update_layout(height=450)
-                st.plotly_chart(fig_curve, use_container_width=True)
-                
-                st.markdown("### 📊 Distribution Analysis (Matched to Heatmaps)")
-                
-                # --- HELPER WITH MEAN & MEDIAN LINES ---
                 def plot_hist_with_stats(data, title, color_hex, label="Count", nbins=50):
-                    if not data: 
-                        st.info(f"No data for {title}"); return
-                    
-                    mean_val = np.mean(data)
-                    median_val = np.median(data)
-                    
+                    if not data: st.info(f"No data for {title}"); return
+                    mean_val = np.mean(data); median_val = np.median(data)
                     fig = px.histogram(x=data, nbins=nbins, title=title, labels={'x': label}, color_discrete_sequence=[color_hex])
-                    
-                    # Add Lines: Median (Solid Black), Mean (Dashed Blue)
-                    fig.add_vline(x=median_val, line_width=2, line_dash="solid", line_color="#333333") # Median
-                    fig.add_vline(x=mean_val, line_width=2, line_dash="dash", line_color="#0072B2")   # Mean
-                    
-                    # Annotations
+                    fig.add_vline(x=median_val, line_width=2, line_dash="solid", line_color="#333333") 
+                    fig.add_vline(x=mean_val, line_width=2, line_dash="dash", line_color="#0072B2")   
                     fig.add_annotation(x=median_val, y=1.05, yref="paper", text=f"Med:{median_val:.1f}", showarrow=False, font=dict(color="#333333", size=10), xanchor="right")
                     fig.add_annotation(x=mean_val, y=1.12, yref="paper", text=f"Avg:{mean_val:.1f}", showarrow=False, font=dict(color="#0072B2", size=10), xanchor="left")
-                    
-                    fig.update_layout(height=350, showlegend=False, margin=dict(l=20, r=20, t=50, b=20))
+                    # ✅ Bargap added
+                    fig.update_layout(height=350, showlegend=False, margin=dict(l=20, r=20, t=50, b=20), bargap=0.1)
                     st.plotly_chart(fig, use_container_width=True)
 
                 def plot_pnl_hist(data_pnl, title):
                     df = pd.DataFrame(data_pnl)
                     if df.empty: st.info(f"No data for {title}"); return
-                    
-                    # Calculate Global Stats
-                    mean_val = df["PnL"].mean()
-                    median_val = df["PnL"].median()
-                    
+                    mean_val = df["PnL"].mean(); median_val = df["PnL"].median()
                     fig = px.histogram(df, x="PnL", color="Status", nbins=50, color_discrete_map=color_map, title=title)
-                    
                     fig.add_vline(x=median_val, line_width=3, line_dash="solid", line_color="#333333") 
                     fig.add_vline(x=mean_val, line_width=3, line_dash="dash", line_color="#000000")   
-                    
                     fig.add_annotation(x=median_val, y=1.05, yref="paper", text=f"Med:{median_val:.0f}", showarrow=False, font=dict(color="#333333", size=11))
-                    
-                    fig.update_layout(height=350, showlegend=False, margin=dict(l=20, r=20, t=50, b=20))
+                    fig.update_layout(height=350, showlegend=False, margin=dict(l=20, r=20, t=50, b=20), bargap=0.1)
                     st.plotly_chart(fig, use_container_width=True)
 
-                # --- 4x2 GRID ---
-                r1_1, r1_2 = st.columns(2)
-                with r1_1: plot_pnl_hist(raw_data["PnL"], "1. Pass Rate -> Final PnL Distribution")
-                with r1_2: plot_hist_with_stats(raw_data["Pass Days"], "2. Time -> Days to Pass Distribution", "#6A0DAD", "Days", 20) 
+                st.markdown("### 📊 Distribution Analysis")
+
+                r1_1, r1_2 = st.columns([1.5, 1])
+                with r1_1: 
+                    # Equity Curve with Opacity 0.5
+                    fig_curve = px.line(df_viz, x="Day", y="Equity", color="Status", line_group="SimID", color_discrete_map=color_map, title=f"Equity Curves: {sel_sim_count} Sample Paths")
+                    fig_curve.add_hline(y=account_size, line_dash="dash", line_color="black"); fig_curve.add_hline(y=account_size + profit_target, line_dash="dot", line_color="#009E73")
+                    fig_curve.update_traces(opacity=0.5, line=dict(width=1)); fig_curve.update_layout(height=450)
+                    st.plotly_chart(fig_curve, use_container_width=True)
+                with r1_2: 
+                    plot_pnl_hist(raw_data["PnL"], "Final PnL Distribution")
 
                 r2_1, r2_2 = st.columns(2)
-                with r2_1: plot_hist_with_stats(raw_data["Max DD"], "3. Fail Rate -> Max Drawdown ($) Distribution", "#D55E00", "Drawdown ($)") 
-                with r2_2: plot_hist_with_stats(raw_data["Fail Days"], "4. Time -> Days to Fail Distribution", "#009E73", "Days", 20) 
+                with r2_1: plot_hist_with_stats(raw_data["Pass Days"], "Days to Pass Distribution", "#6A0DAD", "Days", 20) 
+                with r2_2: plot_hist_with_stats(raw_data["Fail Days"], "Days to Fail Distribution", "#009E73", "Days", 20) 
 
                 r3_1, r3_2 = st.columns(2)
-                with r3_1: plot_hist_with_stats(raw_data["Timeout Equity"], "5. Timeout -> Ending Equity Distribution", "#7F7F7F", "Equity ($)") 
-                with r3_2: plot_hist_with_stats(raw_data["Win Streaks"], "6. Momentum -> Max Win Streaks", "#2CA02C", "Streak Count", 15) 
-
-                r4_1, r4_2 = st.columns(2)
-                with r4_1: plot_hist_with_stats(raw_data["Loss Streaks"], "7. Pain -> Max Loss Streaks", "#FF7F0E", "Streak Count", 15) 
-                with r4_2: plot_hist_with_stats(raw_data["Lowest Equity"], "8. Worst Case -> Lowest Equity Point", "#D62728", "Equity ($)") 
+                with r3_1: plot_hist_with_stats(raw_data["Win Streaks"], "Max Win Streaks", "#2CA02C", "Streak Count", 15) 
+                with r3_2: plot_hist_with_stats(raw_data["Loss Streaks"], "Max Loss Streaks", "#FF7F0E", "Streak Count", 15) 
 
                 st.caption(f"Distributions from {num_simulations} runs. Black Solid Line = Median, Blue Dashed Line = Average.")
 
