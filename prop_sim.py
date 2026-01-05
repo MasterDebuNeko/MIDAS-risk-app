@@ -64,6 +64,7 @@ def run_monte_carlo(risk_val, trades_day_val):
     """Deep simulation for Heatmap & Stats & ALL Histogram Data"""
     reward_per_trade = risk_val * reward_ratio
     personal_limit_usd = (daily_limit_r * risk_val) if daily_limit_r > 0 else 0
+    target_equity_level = account_size + profit_target # Target Level
     
     pass_count = 0
     fail_count = 0
@@ -76,7 +77,7 @@ def run_monte_carlo(risk_val, trades_day_val):
     all_max_win_streaks = [] 
     all_max_loss_streaks = []
     all_max_dd_usd = []        
-    all_timeout_equity = []    # ✅ Key for new analysis
+    all_timeout_dist = [] # ✅ Changed to Distance to Target
     all_lowest_equity = []     
     
     for _ in range(num_simulations):
@@ -127,7 +128,7 @@ def run_monte_carlo(risk_val, trades_day_val):
                 
                 if personal_limit_usd > 0 and current_daily_loss >= personal_limit_usd: break 
 
-                if equity >= (account_size + profit_target): status = "Passed"; break
+                if equity >= target_equity_level: status = "Passed"; break
             
             if status != "In Progress": break
             
@@ -147,7 +148,9 @@ def run_monte_carlo(risk_val, trades_day_val):
             outcome_status = "Failed"
         else: 
             timeout_count += 1
-            all_timeout_equity.append(equity) # Store equity for timeouts
+            # ✅ Calculate Distance to Target (Shortfall)
+            dist = target_equity_level - equity
+            all_timeout_dist.append(dist)
             
         all_final_pnl.append({"PnL": equity - account_size, "Status": outcome_status})
             
@@ -158,9 +161,9 @@ def run_monte_carlo(risk_val, trades_day_val):
     avg_days_fail = sum(all_fail_days) / fail_count if fail_count > 0 else 0
     median_days_fail = np.median(all_fail_days) if fail_count > 0 else 0
     
-    # ✅ Timeout Stats (New)
-    avg_timeout_equity = np.mean(all_timeout_equity) if all_timeout_equity else 0
-    median_timeout_equity = np.median(all_timeout_equity) if all_timeout_equity else 0
+    # ✅ Timeout Stats (Distance)
+    avg_timeout_dist = np.mean(all_timeout_dist) if all_timeout_dist else 0
+    median_timeout_dist = np.median(all_timeout_dist) if all_timeout_dist else 0
         
     avg_max_win_streak = sum(all_max_win_streaks) / num_simulations
     median_max_win_streak = np.median(all_max_win_streaks)
@@ -182,8 +185,8 @@ def run_monte_carlo(risk_val, trades_day_val):
         "Avg Days Fail": round(avg_days_fail, 1),
         "Median Days Fail": round(median_days_fail, 1),
         # ✅ New Metrics
-        "Avg Timeout Equity": round(avg_timeout_equity, 0),
-        "Median Timeout Equity": round(median_timeout_equity, 0),
+        "Avg Dist Target": round(avg_timeout_dist, 0),
+        "Median Dist Target": round(median_timeout_dist, 0),
         
         "Avg Max Win Streak": round(avg_max_win_streak, 1),
         "Median Max Win Streak": round(median_max_win_streak, 1),
@@ -193,7 +196,7 @@ def run_monte_carlo(risk_val, trades_day_val):
         "Raw Data": {
             "PnL": all_final_pnl, "Pass Days": all_pass_days, "Fail Days": all_fail_days,
             "Win Streaks": all_max_win_streaks, "Loss Streaks": all_max_loss_streaks,
-            "Max DD": all_max_dd_usd, "Timeout Equity": all_timeout_equity, "Lowest Equity": all_lowest_equity
+            "Max DD": all_max_dd_usd, "Timeout Dist": all_timeout_dist, "Lowest Equity": all_lowest_equity
         }
     }
 
@@ -202,12 +205,18 @@ def run_visualization_sim(risk_val, trades_day_val, n_viz=100):
     personal_limit_usd = (daily_limit_r * risk_val) if daily_limit_r > 0 else 0
     all_curves = []
     
+    # Calculate Jitter Scale based on Risk Amount
+    jitter_scale = risk_val * 0.2 
+    
     for sim_id in range(n_viz):
         equity = account_size
         high_water_mark = account_size
         status = "Timeout" 
         current_dd_limit = account_size - max_total_dd
-        curve = [{"Day": 0, "Equity": account_size, "SimID": sim_id, "Status": "In Progress"}]
+        
+        # Jitter start
+        vis_equity = account_size + np.random.uniform(-jitter_scale, jitter_scale)
+        curve = [{"Day": 0, "Equity": vis_equity, "SimID": str(sim_id), "Status": "In Progress"}]
         
         for day in range(1, max_days + 1):
             daily_start_equity = equity
@@ -227,7 +236,9 @@ def run_visualization_sim(risk_val, trades_day_val, n_viz=100):
                 if personal_limit_usd > 0 and current_daily_loss >= personal_limit_usd: break 
                 if equity >= (account_size + profit_target): status = "Passed"; break
             
-            curve.append({"Day": day, "Equity": equity, "SimID": sim_id, "Status": status})
+            # Plot Jitter
+            vis_equity = equity + np.random.uniform(-jitter_scale, jitter_scale)
+            curve.append({"Day": day, "Equity": vis_equity, "SimID": str(sim_id), "Status": status})
             if status != "In Progress": break
         
         final_status = curve[-1]["Status"]
@@ -266,7 +277,7 @@ with tab1:
             cols = ["Risk ($)", "Risk (%)", "Trades/Day", 
                     "Pass Rate (%)", "Avg Days Pass", "Median Days Pass", 
                     "Fail Rate (%)", "Avg Days Fail", "Median Days Fail", 
-                    "Timeout Rate (%)", "Median Timeout Equity", # ✅ New Col
+                    "Timeout Rate (%)", "Median Dist Target", # ✅ New Col Name
                     "Avg Max Win Streak", "Avg Max Loss Streak", "Worst Case Streak (95%)"]
             st.session_state.sim_results = df_summary[cols]
             
@@ -293,8 +304,9 @@ with tab1:
 
         col3, col4 = st.columns(2)
         with col3: draw_heatmap("Fail Rate (%)", "Reds", "💥 3. Fail Rate (%)", "🟥 **Goal: Minimize.** Darker Red = High Risk.")
-        # ✅ New Heatmap: Median Timeout Equity
-        with col4: draw_heatmap("Median Timeout Equity", "Teal", "💰 4. Median Timeout Equity ($)", "🟩 **Status:** Equity left when time runs out.")
+        
+        # ✅ New Heatmap: Median Distance to Target
+        with col4: draw_heatmap("Median Dist Target", "Teal", "🎯 4. Median Distance to Target ($)", "🟩 **Missing:** Amount needed to pass (for Timeouts).")
 
         col5, col6 = st.columns(2)
         with col5: draw_heatmap("Timeout Rate (%)", "Greys", "🐢 5. Timeout Rate (%)", "⬜ **Goal: Minimize.** High Grey = Too passive.")
@@ -312,13 +324,13 @@ with tab1:
                 "Pass Rate (%)": "{:.1f}%", "Fail Rate (%)": "{:.1f}%", "Timeout Rate (%)": "{:.1f}%",
                 "Avg Days Pass": "{:.1f}", "Median Days Pass": "{:.1f}",
                 "Avg Days Fail": "{:.1f}", "Median Days Fail": "{:.1f}",
-                "Median Timeout Equity": "${:,.0f}", # ✅ Currency Format
+                "Median Dist Target": "${:,.0f}", # ✅ Currency Format
                 "Avg Max Win Streak": "{:.1f}", "Avg Max Loss Streak": "{:.1f}", "Worst Case Streak (95%)": "{:.1f}"
             })
             .background_gradient(subset=["Pass Rate (%)"], cmap="Blues")
             .background_gradient(subset=["Fail Rate (%)"], cmap="Reds")
             .background_gradient(subset=["Timeout Rate (%)"], cmap="Greys")
-            .background_gradient(subset=["Median Timeout Equity"], cmap="Teal") # ✅ New Color
+            .background_gradient(subset=["Median Dist Target"], cmap="GnBu") # ✅ FIXED: Changed Teal -> GnBu
             .background_gradient(subset=["Avg Max Win Streak"], cmap="Greens") 
             .background_gradient(subset=["Avg Max Loss Streak"], cmap="Oranges")
             .background_gradient(subset=["Worst Case Streak (95%)"], cmap="YlOrRd"),
@@ -365,8 +377,8 @@ with tab2:
 
             m1, m2, m3, m4 = st.columns(4)
             with m1: metric_card("Median Days Pass", f"{stats['Median Days Pass']}", f"{stats['Avg Days Pass']}")
-            # ✅ REPLACED: Show Median Timeout Equity instead of Days Fail
-            with m2: metric_card("Median Timeout Equity", f"${stats['Median Timeout Equity']:,.0f}", f"${stats['Avg Timeout Equity']:,.0f}")
+            # ✅ REPLACED: Show Median Distance to Target
+            with m2: metric_card("Median Dist Target", f"${stats['Median Dist Target']:,.0f}", f"${stats['Avg Dist Target']:,.0f}")
             with m3: metric_card("Median Win Streak", f"{stats['Median Max Win Streak']}", f"{stats['Avg Max Win Streak']}")
             with m4: metric_card("Median Loss Streak", f"{stats['Median Max Loss Streak']}", f"{stats['Avg Max Loss Streak']}")
             
@@ -425,9 +437,9 @@ with tab2:
                 r2_1, r2_2 = st.columns(2)
                 with r2_1: plot_hist_with_stats(raw_data["Pass Days"], "Days to Pass Distribution", "#6A0DAD", "Days", 20) 
                 
-                # ✅ REPLACED: Days to Fail -> Timeout Ending Equity
+                # ✅ REPLACED: Show Distance to Target Histogram
                 with r2_2: 
-                    plot_hist_with_stats(raw_data["Timeout Equity"], "Timeout Ending Equity Distribution", "#008080", "Equity ($)", 50) # Teal color
+                    plot_hist_with_stats(raw_data["Timeout Dist"], "Timeout: Missing Distance to Target ($)", "#008080", "Missing ($)", 50) 
 
                 r3_1, r3_2 = st.columns(2)
                 with r3_1: plot_hist_with_stats(raw_data["Win Streaks"], "Max Win Streaks", "#2CA02C", "Streak Count", 15) 
