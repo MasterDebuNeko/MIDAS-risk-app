@@ -325,10 +325,18 @@ with tab1:
     if st.session_state.sim_results is not None:
         df_summary = st.session_state.sim_results
         
-        def draw_heatmap(val_col, color_scale, title, caption):
+        # --- [MODIFIED] Function to accept fixed_range for unified scaling ---
+        def draw_heatmap(val_col, color_scale, title, caption, fixed_range=None):
             heatmap_data = df_summary.pivot(index="Trades/Day", columns="Risk ($)", values=val_col)
+            
+            # Prepare arguments for px.imshow
+            kwargs = {}
+            if fixed_range:
+                kwargs['range_color'] = fixed_range
+                
             fig = px.imshow(heatmap_data, labels=dict(x="Risk ($)", y="Trades/Day", color=val_col),
-                            x=heatmap_data.columns, y=heatmap_data.index, text_auto=".1f", aspect="auto", color_continuous_scale=color_scale)
+                            x=heatmap_data.columns, y=heatmap_data.index, text_auto=".1f", aspect="auto", 
+                            color_continuous_scale=color_scale, **kwargs)
             fig.update_yaxes(dtick=1)
             st.subheader(title); st.plotly_chart(fig, use_container_width=True); st.caption(caption)
 
@@ -344,18 +352,42 @@ with tab1:
         # 4. Timeout Rate (%)
         with col4: draw_heatmap("Timeout Rate (%)", "Greys", "🐢 4. Timeout Rate (%)", "⬜ **Goal: Minimize.** High Grey = Too passive.")
 
-        # 5. Median Max Loss Streak [CHANGED to 'Reds' to match All Loss Histogram]
+        # --- [NEW] Calculate Unified Range for ALL Loss Streaks (3 Metrics) ---
+        # Include Passed Worst Case in the min/max calculation
+        loss_min = min(
+            df_summary["Median Max Loss Streak"].min(), 
+            df_summary["Worst Case Loss Streak (95%)"].min(),
+            df_summary["Passed Worst Case Loss (95%)"].min()
+        )
+        loss_max = max(
+            df_summary["Median Max Loss Streak"].max(), 
+            df_summary["Worst Case Loss Streak (95%)"].max(),
+            df_summary["Passed Worst Case Loss (95%)"].max()
+        )
+        unified_loss_range = [loss_min, loss_max]
+
+        # 5. Median Max Loss Streak [Use 'Reds' + Unified]
         col5, col6 = st.columns(2)
-        with col5: draw_heatmap("Median Max Loss Streak", "Reds", "🥶 5. Median Max Loss Streak", "🟥 **Pain Index.** Median consecutive losses (Strong Red).")
-        # 6. Worst Case Loss Streak (All Scenarios) [KEPT 'Reds']
-        with col6: draw_heatmap("Worst Case Loss Streak (95%)", "Reds", "💀 6. All: Worst Case Loss (95%)", "🟥 **Extreme Risk.** 95% chance loss streak won't exceed this (Dark Red).")
+        with col5: 
+            draw_heatmap("Median Max Loss Streak", "Reds", "🥶 5. Median Max Loss Streak", 
+                         "🟥 **Pain Index.** Median consecutive losses (Unified Scale).", 
+                         fixed_range=unified_loss_range)
+                         
+        # 6. Worst Case Loss Streak (All Scenarios) [Use 'Reds' + Unified]
+        with col6: 
+            draw_heatmap("Worst Case Loss Streak (95%)", "Reds", "💀 6. All: Worst Case Loss (95%)", 
+                         "🟥 **Extreme Risk.** 95% chance loss streak limit (Unified Scale).", 
+                         fixed_range=unified_loss_range)
 
         # 7. Median Max Win Streak
         col7, col8 = st.columns(2)
         with col7: draw_heatmap("Median Max Win Streak", "Greens", "🍀 7. Median Max Win Streak", "🟩 **Momentum.** Median consecutive wins.")
         
-        # 8. Passed Worst Case Loss (Pass Scenarios Only)
-        with col8: draw_heatmap("Passed Worst Case Loss (95%)", "Oranges", "🥵 8. Passed: Worst Case Loss (95%)", "🟧 **Survivor Pain.** Worst case streak even for those who passed (Orange Red).")
+        # 8. Passed Worst Case Loss (Pass Scenarios Only) [Use 'Oranges' + Unified]
+        with col8: 
+            draw_heatmap("Passed Worst Case Loss (95%)", "Oranges", "🥵 8. Passed: Worst Case Loss (95%)", 
+                         "🟧 **Survivor Pain.** Worst case streak for winners (Unified Scale).",
+                         fixed_range=unified_loss_range)
 
         st.divider()
         
@@ -370,7 +402,7 @@ with tab1:
             st.write("") 
             show_all_rows = st.checkbox("Show Full Table", value=False)
         
-        # --- SMART HEIGHT CALCULATION ---
+       # --- SMART HEIGHT CALCULATION ---
         natural_height = (len(df_summary) + 1) * 35 + 3
         
         if show_all_rows:
@@ -378,6 +410,7 @@ with tab1:
         else:
             table_height = min(natural_height, 400)
 
+        # Apply Unified Scale (vmin, vmax) to the DataFrame styling as well
         st.dataframe(
             df_summary.style.format({
                 "Risk ($)": "${:.0f}", "Risk (%)": "{:.2f}%", 
@@ -392,10 +425,12 @@ with tab1:
             .background_gradient(subset=["Fail Rate (%)"], cmap="Reds")
             .background_gradient(subset=["Timeout Rate (%)"], cmap="Greys")
             .background_gradient(subset=["Median Days Pass"], cmap="Purples")
-            .background_gradient(subset=["Median Max Loss Streak"], cmap="Reds")   # [CHANGED back to Reds to maintain distinct 'Red vs Orange' groups]
-            .background_gradient(subset=["Worst Case Loss Streak (95%)"], cmap="Reds") 
-            .background_gradient(subset=["Median Max Win Streak"], cmap="Greens")
-            .background_gradient(subset=["Passed Worst Case Loss (95%)"], cmap="Oranges"),
+            # --- UNIFIED SCALE APPLIED HERE (vmin/vmax) ---
+            .background_gradient(subset=["Median Max Loss Streak"], cmap="Reds", vmin=loss_min, vmax=loss_max)
+            .background_gradient(subset=["Worst Case Loss Streak (95%)"], cmap="Reds", vmin=loss_min, vmax=loss_max)
+            .background_gradient(subset=["Passed Worst Case Loss (95%)"], cmap="Oranges", vmin=loss_min, vmax=loss_max)
+            # ---------------------------------------------
+            .background_gradient(subset=["Median Max Win Streak"], cmap="Greens"),
             use_container_width=True,
             height=table_height
         )
