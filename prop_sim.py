@@ -479,37 +479,41 @@ with tab2:
                 plot_pnl_hist(raw_data["PnL"], "Final PnL Distribution", color_map)
             
             with r1_right: 
-                # Curve Filter
-                curve_filter = st.selectbox("Show Curves:", ["ALL", "Passed", "Timeout", "Failed", "Passed + Timeout", "Timeout + Failed"])
+                # 1. Create Placeholder at the TOP
+                chart_placeholder = st.empty()
                 
-                # Apply Filter
-                if curve_filter == "ALL":
-                    df_plot = df_viz
-                elif curve_filter == "Passed":
-                    df_plot = df_viz[df_viz['Status'] == 'Passed']
-                elif curve_filter == "Timeout":
-                    df_plot = df_viz[df_viz['Status'] == 'Timeout']
-                elif curve_filter == "Failed":
-                    df_plot = df_viz[df_viz['Status'] == 'Failed']
-                elif curve_filter == "Passed + Timeout":
-                    df_plot = df_viz[df_viz['Status'].isin(['Passed', 'Timeout'])]
-                elif curve_filter == "Timeout + Failed":
-                    df_plot = df_viz[df_viz['Status'].isin(['Timeout', 'Failed'])]
+                # 2. Checkboxes BELOW the chart area
+                st.markdown("**Show Curves:**")
+                cf1, cf2, cf3 = st.columns(3)
+                with cf1: show_passed = st.checkbox("Passed", value=True)
+                with cf2: show_timeout = st.checkbox("Timeout", value=True)
+                with cf3: show_failed = st.checkbox("Failed", value=True)
                 
-                # Plotting PROFIT instead of Equity
-                fig_curve = px.line(df_plot, x="Day", y="Profit_Plot", color="Status", line_group="SimID", 
-                                    color_discrete_map=color_map, 
-                                    title=f"Profit Curves ({curve_filter}): {len(df_plot['SimID'].unique())} Sample Paths",
-                                    hover_data={"Profit": True, "Profit_Plot": False}) 
+                selected_filters = []
+                if show_passed: selected_filters.append("Passed")
+                if show_timeout: selected_filters.append("Timeout")
+                if show_failed: selected_filters.append("Failed")
                 
-                # Start Line (0 Profit)
-                fig_curve.add_hline(y=0, line_dash="dash", line_color="black", annotation_text="Start ($0)")
-                # Target Line (Profit Target)
-                fig_curve.add_hline(y=profit_target, line_dash="dot", line_color="#009E73", annotation_text=f"Target (+${profit_target})")
-                
-                fig_curve.update_traces(opacity=0.5, line=dict(width=1))
-                fig_curve.update_layout(height=450, margin=dict(l=20, r=20, t=60, b=20), yaxis_title="Profit ($)")
-                st.plotly_chart(fig_curve, use_container_width=True)
+                if not selected_filters:
+                    chart_placeholder.warning("⚠️ Please select at least one status to visualize.")
+                else:
+                    df_plot = df_viz[df_viz['Status'].isin(selected_filters)]
+                    status_str = ", ".join(selected_filters)
+                    
+                    # 3. Generate Chart
+                    fig_curve = px.line(df_plot, x="Day", y="Profit_Plot", color="Status", line_group="SimID", 
+                                        color_discrete_map=color_map, 
+                                        title=f"Profit Curves ({status_str}): {len(df_plot['SimID'].unique())} Sample Paths",
+                                        hover_data={"Profit": True, "Profit_Plot": False}) 
+                    
+                    fig_curve.add_hline(y=0, line_dash="dash", line_color="black", annotation_text="Start ($0)")
+                    fig_curve.add_hline(y=profit_target, line_dash="dot", line_color="#009E73", annotation_text=f"Target (+${profit_target})")
+                    
+                    fig_curve.update_traces(opacity=0.5, line=dict(width=1))
+                    fig_curve.update_layout(height=450, margin=dict(l=20, r=20, t=60, b=20), yaxis_title="Profit ($)")
+                    
+                    # 4. Push Chart to Placeholder at the TOP
+                    chart_placeholder.plotly_chart(fig_curve, use_container_width=True)
 
             r2_1, r2_2 = st.columns(2)
             with r2_1: plot_hist_with_stats(raw_data["Pass Days"], "Days to Pass Distribution", "#6A0DAD", "Days", 20, percentile=95) 
