@@ -14,6 +14,8 @@ st.markdown("""
     .stButton>button { width: 100%; background-color: #007bff; color: white; }
     .small-font { font-size: 11px; color: #999; margin-top: -12px; margin-bottom: 10px; font-weight: 300; font-style: italic; }
     .avg-text { font-size: 13px; color: #888; margin-top: -15px; margin-bottom: 10px; font-weight: 400; }
+    /* Reduce padding for checkboxes to save space */
+    .stCheckbox { margin-top: -15px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -402,7 +404,8 @@ with tab2:
         fig.add_vline(x=median_val, line_width=3, line_dash="solid", line_color="#333333") 
         fig.add_vline(x=mean_val, line_width=3, line_dash="dash", line_color="#000000")   
         fig.add_annotation(x=median_val, y=1.05, yref="paper", text=f"Med:{median_val:.0f}", showarrow=False, font=dict(color="#333333", size=11))
-        fig.update_layout(height=450, showlegend=False, margin=dict(l=20, r=20, t=60, b=20), bargap=0.1)
+        # Increased height to 500 to match Right Side (Chart 450 + Widgets)
+        fig.update_layout(height=500, showlegend=False, margin=dict(l=20, r=20, t=60, b=20), bargap=0.1)
         st.plotly_chart(fig, use_container_width=True)
 
     # --- 2. Input Section ---
@@ -476,14 +479,15 @@ with tab2:
 
             r1_left, r1_right = st.columns([1, 2])
             with r1_left: 
+                # Left Side Chart: Increased Height to 500
                 plot_pnl_hist(raw_data["PnL"], "Final PnL Distribution", color_map)
             
             with r1_right: 
-                # 1. Create Placeholder at the TOP
+                # 1. Create Placeholder at the TOP for the Chart
                 chart_placeholder = st.empty()
                 
                 # 2. Checkboxes BELOW the chart area
-                st.markdown("**Show Curves:**")
+                # Use cols to compact them
                 cf1, cf2, cf3 = st.columns(3)
                 with cf1: show_passed = st.checkbox("Passed", value=True)
                 with cf2: show_timeout = st.checkbox("Timeout", value=True)
@@ -500,7 +504,7 @@ with tab2:
                     df_plot = df_viz[df_viz['Status'].isin(selected_filters)]
                     status_str = ", ".join(selected_filters)
                     
-                    # 3. Generate Chart
+                    # 3. Generate Chart (Height 450)
                     fig_curve = px.line(df_plot, x="Day", y="Profit_Plot", color="Status", line_group="SimID", 
                                         color_discrete_map=color_map, 
                                         title=f"Profit Curves ({status_str}): {len(df_plot['SimID'].unique())} Sample Paths",
@@ -510,6 +514,7 @@ with tab2:
                     fig_curve.add_hline(y=profit_target, line_dash="dot", line_color="#009E73", annotation_text=f"Target (+${profit_target})")
                     
                     fig_curve.update_traces(opacity=0.5, line=dict(width=1))
+                    # Reduced bottom margin (b=20) to sit closer to checkboxes
                     fig_curve.update_layout(height=450, margin=dict(l=20, r=20, t=60, b=20), yaxis_title="Profit ($)")
                     
                     # 4. Push Chart to Placeholder at the TOP
@@ -517,12 +522,10 @@ with tab2:
 
             r2_1, r2_2 = st.columns(2)
             with r2_1: plot_hist_with_stats(raw_data["Pass Days"], "Days to Pass Distribution", "#6A0DAD", "Days", 20, percentile=95) 
-            # Updated to Orange Red (#FF4500) for distinct survivor pain
             with r2_2: plot_hist_with_stats(raw_data["Passed Loss Streaks"], "Passed : Max Loss Streaks", "#FF4500", "Streak Count", 15, percentile=95) 
 
             r3_1, r3_2 = st.columns(2)
             with r3_1: plot_hist_with_stats(raw_data["Win Streaks"], "Max Win Streaks", "#2CA02C", "Streak Count", 15, percentile=95) 
-            # Updated to Dark Red (#8B0000) for deepest risk
             with r3_2: plot_hist_with_stats(raw_data["Loss Streaks"], "All : Max Loss Streaks", "#8B0000", "Streak Count", 15, percentile=95) 
 
             st.caption(f"Distributions from {num_simulations} runs. Black Solid Line = Median, Blue Dashed Line = Average.")
