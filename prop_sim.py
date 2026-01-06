@@ -349,7 +349,8 @@ with tab1:
             .background_gradient(subset=["Median Max Loss Streak"], cmap="Oranges")
             .background_gradient(subset=["Worst Case Loss Streak (95%)"], cmap="YlOrRd")
             .background_gradient(subset=["Median Max Win Streak"], cmap="Greens")
-            .background_gradient(subset=["Best Case Win Streak (95%)"], cmap="Teal"),
+            # Changed from 'Teal' to 'GnBu' because 'Teal' is not a valid matplotlib colormap
+            .background_gradient(subset=["Best Case Win Streak (95%)"], cmap="GnBu"),
             use_container_width=True
         )
 
