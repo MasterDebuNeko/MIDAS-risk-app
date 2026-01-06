@@ -579,6 +579,5 @@ with tab2:
             with r3_1: plot_hist_with_stats(raw_data["Win Streaks"], "🍀 Max Win Streaks", "#2CA02C", "Streak Count", 15, percentile=95) 
             with r3_2: plot_hist_with_stats(raw_data["Loss Streaks"], "💀 All : Max Loss Streaks", "#8B0000", "Streak Count", 15, percentile=95) 
 
-            st.caption(f"Distributions from {num_simulations} runs. Black Solid Line = Median, Blue Dashed Line = Average.")
-
+            # Deleted the caption as requested previously
     except ValueError: st.error("⚠️ Error in inputs.")
