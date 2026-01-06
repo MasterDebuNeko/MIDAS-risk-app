@@ -7,11 +7,12 @@ import plotly.express as px
 st.set_page_config(page_title="Prop Firm Simulator", layout="wide")
 
 # --- CSS Styling ---
+# Adjusted .small-font to be smaller, thinner, and lighter color
 st.markdown("""
 <style>
     .metric-card { background-color: #f0f2f6; padding: 15px; border-radius: 10px; }
     .stButton>button { width: 100%; background-color: #007bff; color: white; }
-    .small-font { font-size: 12px; color: #666; margin-top: -10px; margin-bottom: 10px; }
+    .small-font { font-size: 11px; color: #999; margin-top: -12px; margin-bottom: 10px; font-weight: 300; font-style: italic; }
     .avg-text { font-size: 13px; color: #888; margin-top: -15px; margin-bottom: 10px; font-weight: 400; }
 </style>
 """, unsafe_allow_html=True)
@@ -442,13 +443,13 @@ with tab2:
             with k1: metric_card("🔥 Pass Rate", f"{stats['Pass Rate (%)']:.1f}%")
             with k2: metric_card("💥 Fail Rate", f"{stats['Fail Rate (%)']:.1f}%")
             with k3: metric_card("🐢 Timeout Rate", f"{stats['Timeout Rate (%)']:.1f}%")
-            with k4: metric_card("🥵 Passed Worst Case Loss", f"{stats['Passed Worst Case Loss (95%)']}")
+            with k4: metric_card("⏳ Median Days to Pass", f"{stats['Median Days Pass']}", f"{stats['Avg Days Pass']}")
 
             m1, m2, m3, m4 = st.columns(4)
-            with m1: metric_card("Median Days Pass", f"{stats['Median Days Pass']}", f"{stats['Avg Days Pass']}")
-            with m2: metric_card("Median Days Fail", f"{stats['Median Days Fail']}", f"{stats['Avg Days Fail']}")
-            with m3: metric_card("Median Win Streak", f"{stats['Median Max Win Streak']}", f"{stats['Avg Max Win Streak']}")
-            with m4: metric_card("Median Loss Streak", f"{stats['Median Max Loss Streak']}", f"{stats['Avg Max Loss Streak']}")
+            with m1: metric_card("🍀 Median Win Streak", f"{stats['Median Max Win Streak']}", f"{stats['Avg Max Win Streak']}")
+            with m2: metric_card("🥶 Median Loss Streak", f"{stats['Median Max Loss Streak']}", f"{stats['Avg Max Loss Streak']}")
+            with m3: metric_card("🥵 Passed: Worst Case Loss", f"{stats['Passed Worst Case Loss (95%)']}")
+            with m4: metric_card("💀 All: Worst Case Loss", f"{stats['Worst Case Loss Streak (95%)']}")
             
             st.divider()
 
@@ -480,12 +481,12 @@ with tab2:
 
             r2_1, r2_2 = st.columns(2)
             with r2_1: plot_hist_with_stats(raw_data["Pass Days"], "Days to Pass Distribution", "#6A0DAD", "Days", 20) 
-            # Changed color to #FFA07A (Light Salmon/Soft Orange) for "Soft Loss" look
             with r2_2: plot_hist_with_stats(raw_data["Passed Loss Streaks"], "Max Loss Streaks (Passed Scenarios Only)", "#FFA07A", "Streak Count", 15) 
 
             r3_1, r3_2 = st.columns(2)
             with r3_1: plot_hist_with_stats(raw_data["Win Streaks"], "Max Win Streaks", "#2CA02C", "Streak Count", 15) 
-            with r3_2: plot_hist_with_stats(raw_data["Loss Streaks"], "Max Loss Streaks (All Scenarios)", "#FF7F0E", "Streak Count", 15) 
+            # Updated to Red (#D62728) to match Heatmap (Reds)
+            with r3_2: plot_hist_with_stats(raw_data["Loss Streaks"], "Max Loss Streaks (All Scenarios)", "#D62728", "Streak Count", 15) 
 
             st.caption(f"Distributions from {num_simulations} runs. Black Solid Line = Median, Blue Dashed Line = Average.")
 
