@@ -390,19 +390,19 @@ with tab1:
         c1, c2, c3 = st.columns(3)
         
         with c1:
+            st.markdown(f"• **Account:** ${p['acc']:,.0f}")
             st.markdown(f"• **Profit Target:** ${p['tgt']:,.0f}")
-            st.markdown(f"• **Max Total Drawdown:** ${p['mtd']:,.0f}")
-            st.markdown(f"• **Win Rate:** {p['win']}%")
+            st.markdown(f"• **Max Daily Drawdown:** ${p['mdd']:,.0f}")
             
         with c2:
+            st.markdown(f"• **Win Rate:** {p['win']}%")
             st.markdown(f"• **Risk/Reward Ratio:** 1:{p['rr']}")
-            st.markdown(f"• **No. of Trades per day:** {p['t_in']}")
-            st.markdown(f"• **Risk Amount:** {p['r_in']}")
+            st.markdown(f"• **Personal Daily Limit:** {p['r_lim']}R")
             
         with c3:
-            st.markdown(f"• **Daily Loss Limit (R):** {p['r_lim']}R")
-            st.markdown(f"• **Simulation per scenario:** {p['sims']:,}")
-            st.markdown(f"• **Max Days to Trade:** {p['days']}")
+            st.markdown(f"• **Simulations:** {p['sims']:,} runs")
+            st.markdown(f"• **Max Days:** {p['days']} days")
+            st.markdown(f"• **Risk Amount:** {p['r_in']}")
 
 # ================= TAB 2: DEEP DIVE =================
 with tab2:
@@ -566,4 +566,43 @@ with tab2:
                                         hover_data={"Profit": True, "Profit_Plot": False}) 
                     
                     fig_curve.add_hline(y=0, line_dash="dash", line_color="black", annotation_text="Start ($0)")
-                    fig_curve.add_hline(y=profit_target, line_dash="dot", line_color="#009E73", annotation_text=f"Target (+${profit
+                    
+                    # Corrected Line: added :.0f to profit_target inside f-string and closed the parenthesis correctly
+                    fig_curve.add_hline(y=profit_target, line_dash="dot", line_color="#009E73", annotation_text=f"Target (+${profit_target:,.0f})")
+                    
+                    fig_curve.update_traces(opacity=0.5, line=dict(width=1))
+                    fig_curve.update_layout(height=420, margin=dict(l=20, r=20, t=20, b=20), yaxis_title="Profit ($)")
+                    
+                    st.plotly_chart(fig_curve, use_container_width=True)
+                    
+                    # 4. Count Summary (Small Line Below Chart)
+                    unique_sims = df_viz.drop_duplicates("SimID")
+                    counts = unique_sims['Status'].value_counts()
+                    n_pass = counts.get('Passed', 0)
+                    n_time = counts.get('Timeout', 0)
+                    n_fail = counts.get('Failed', 0)
+                    
+                    # Style logic: Dim text if unchecked
+                    style_pass = "color:#0072B2; font-weight:bold" if show_passed else "color:#ccc"
+                    style_time = "color:#B6B6B6; font-weight:bold" if show_timeout else "color:#eee"
+                    style_fail = "color:#D55E00; font-weight:bold" if show_failed else "color:#ccc"
+                    
+                    st.markdown(f"""
+                    <div class='chart-caption'>
+                        Sample Counts: 
+                        <span style='{style_pass}'>Passed: {n_pass}</span> • 
+                        <span style='{style_time}'>Timeout: {n_time}</span> • 
+                        <span style='{style_fail}'>Failed: {n_fail}</span>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+            r2_1, r2_2 = st.columns(2)
+            # Histograms with External Titles & Icons
+            with r2_1: plot_hist_with_stats(raw_data["Pass Days"], "⏳ Days to Pass Distribution", "#6A0DAD", "Days", 20, percentile=95) 
+            with r2_2: plot_hist_with_stats(raw_data["Passed Loss Streaks"], "🥵 Passed : Max Loss Streaks", "#FF4500", "Streak Count", 15, percentile=95) 
+
+            r3_1, r3_2 = st.columns(2)
+            with r3_1: plot_hist_with_stats(raw_data["Win Streaks"], "🍀 Max Win Streaks", "#2CA02C", "Streak Count", 15, percentile=95) 
+            with r3_2: plot_hist_with_stats(raw_data["Loss Streaks"], "💀 All : Max Loss Streaks", "#8B0000", "Streak Count", 15, percentile=95) 
+
+    except ValueError: st.error("⚠️ Error in inputs.")
