@@ -479,19 +479,28 @@ with tab2:
         # Average - Dash Line (Consistent Color)
         fig.add_vline(x=mean_val, line_width=3, line_dash="dash", line_color=color_hex)   
         
-        # Annotations (Color matches histogram, bold for visibility) - Added spaces
-        fig.add_annotation(x=median_val, y=1.05, yref="paper", text=f"Med : {median_val:.1f}", showarrow=False, font=dict(color=color_hex, size=11, weight="bold"), xanchor="right")
-        fig.add_annotation(x=mean_val, y=1.12, yref="paper", text=f"Avg : {mean_val:.1f}", showarrow=False, font=dict(color=color_hex, size=11, weight="bold"), xanchor="left")
+        # Annotations (Fixed Position: Center + Staggered Height)
+        # 1. Median (Lowest)
+        fig.add_annotation(x=median_val, y=1.02, yref="paper", text=f"Med: {median_val:.1f}", 
+                           showarrow=False, font=dict(color=color_hex, size=11, weight="bold"), 
+                           xanchor="center", bgcolor="rgba(255,255,255,0.7)")
+        
+        # 2. Average (Middle)
+        fig.add_annotation(x=mean_val, y=1.15, yref="paper", text=f"Avg: {mean_val:.1f}", 
+                           showarrow=False, font=dict(color=color_hex, size=11, weight="bold"), 
+                           xanchor="center", bgcolor="rgba(255,255,255,0.7)")
         
         if percentile:
             p_val = np.percentile(data, percentile)
             # 95% Line - Dotted (Consistent Color)
             fig.add_vline(x=p_val, line_width=2, line_dash="dot", line_color=color_hex) 
-            # Added spaces in text label
-            fig.add_annotation(x=p_val, y=0.95, yref="paper", text=f"{percentile}% : {p_val:.1f}", showarrow=False, font=dict(color=color_hex, size=10, weight="bold"), xanchor="left")
+            # 3. Percentile (Highest)
+            fig.add_annotation(x=p_val, y=1.28, yref="paper", text=f"{percentile}%: {p_val:.1f}", 
+                               showarrow=False, font=dict(color=color_hex, size=10, weight="bold"), 
+                               xanchor="center", bgcolor="rgba(255,255,255,0.7)")
 
-        # [FIXED] Increased top margin from t=10 to t=40 to show 'Avg' label
-        fig.update_layout(height=350, showlegend=False, margin=dict(l=20, r=20, t=40, b=20), bargap=0.1)
+        # Increased top margin to 80 to prevent clipping
+        fig.update_layout(height=400, showlegend=False, margin=dict(l=20, r=20, t=80, b=20), bargap=0.1)
         st.plotly_chart(fig, use_container_width=True)
 
     def plot_pnl_hist(data_pnl, title, color_map):
