@@ -7,15 +7,21 @@ import plotly.express as px
 st.set_page_config(page_title="Prop Firm Simulator", layout="wide")
 
 # --- CSS Styling ---
-# Adjusted .small-font to be smaller, thinner, and lighter color
 st.markdown("""
 <style>
     .metric-card { background-color: #f0f2f6; padding: 15px; border-radius: 10px; }
     .stButton>button { width: 100%; background-color: #007bff; color: white; }
     .small-font { font-size: 11px; color: #999; margin-top: -12px; margin-bottom: 10px; font-weight: 300; font-style: italic; }
     .avg-text { font-size: 13px; color: #888; margin-top: -15px; margin-bottom: 10px; font-weight: 400; }
-    /* Reduce padding for checkboxes to save space */
-    .stCheckbox { margin-top: -15px; }
+    
+    /* Compact Checkbox Styling */
+    .stCheckbox { margin-top: -10px; margin-bottom: -10px; }
+    .stCheckbox label { font-size: 12px !important; } 
+    
+    /* Reduce gap in horizontal blocks for the filter area */
+    div[data-testid="column"] { padding: 0px !important; }
+    
+    h4 { margin-bottom: 5px; } 
 </style>
 """, unsafe_allow_html=True)
 
@@ -383,15 +389,16 @@ with tab2:
         # Average - Dash Line (Consistent Color)
         fig.add_vline(x=mean_val, line_width=3, line_dash="dash", line_color=color_hex)   
         
-        # Annotations (Color matches histogram, bold for visibility)
-        fig.add_annotation(x=median_val, y=1.05, yref="paper", text=f"Med:{median_val:.1f}", showarrow=False, font=dict(color=color_hex, size=11, weight="bold"), xanchor="right")
-        fig.add_annotation(x=mean_val, y=1.12, yref="paper", text=f"Avg:{mean_val:.1f}", showarrow=False, font=dict(color=color_hex, size=11, weight="bold"), xanchor="left")
+        # Annotations (Color matches histogram, bold for visibility) - Added spaces
+        fig.add_annotation(x=median_val, y=1.05, yref="paper", text=f"Med : {median_val:.1f}", showarrow=False, font=dict(color=color_hex, size=11, weight="bold"), xanchor="right")
+        fig.add_annotation(x=mean_val, y=1.12, yref="paper", text=f"Avg : {mean_val:.1f}", showarrow=False, font=dict(color=color_hex, size=11, weight="bold"), xanchor="left")
         
         if percentile:
             p_val = np.percentile(data, percentile)
             # 95% Line - Dotted (Consistent Color)
             fig.add_vline(x=p_val, line_width=2, line_dash="dot", line_color=color_hex) 
-            fig.add_annotation(x=p_val, y=0.95, yref="paper", text=f"{percentile}%:{p_val:.1f}", showarrow=False, font=dict(color=color_hex, size=10, weight="bold"), xanchor="left")
+            # Added spaces in text label
+            fig.add_annotation(x=p_val, y=0.95, yref="paper", text=f"{percentile}% : {p_val:.1f}", showarrow=False, font=dict(color=color_hex, size=10, weight="bold"), xanchor="left")
 
         fig.update_layout(height=350, showlegend=False, margin=dict(l=20, r=20, t=50, b=20), bargap=0.1)
         st.plotly_chart(fig, use_container_width=True)
@@ -404,8 +411,8 @@ with tab2:
         fig.add_vline(x=median_val, line_width=3, line_dash="solid", line_color="#333333") 
         fig.add_vline(x=mean_val, line_width=3, line_dash="dash", line_color="#000000")   
         fig.add_annotation(x=median_val, y=1.05, yref="paper", text=f"Med:{median_val:.0f}", showarrow=False, font=dict(color="#333333", size=11))
-        # Increased height to 500 to match Right Side (Chart 450 + Widgets)
-        fig.update_layout(height=500, showlegend=False, margin=dict(l=20, r=20, t=60, b=20), bargap=0.1)
+        # Increased height to 550 to match Right Side (Chart 420 + Header + Checkboxes)
+        fig.update_layout(height=550, showlegend=False, margin=dict(l=20, r=20, t=60, b=20), bargap=0.1)
         st.plotly_chart(fig, use_container_width=True)
 
     # --- 2. Input Section ---
@@ -479,19 +486,18 @@ with tab2:
 
             r1_left, r1_right = st.columns([1, 2])
             with r1_left: 
-                # Left Side Chart: Increased Height to 500
+                # Left Side Chart: Height 550
                 plot_pnl_hist(raw_data["PnL"], "Final PnL Distribution", color_map)
             
             with r1_right: 
-                # 1. Create Placeholder at the TOP for the Chart
-                chart_placeholder = st.empty()
+                # 1. Label
+                st.markdown("#### 📈 Profit Curves")
                 
-                # 2. Checkboxes BELOW the chart area
-                # Use cols to compact them
-                cf1, cf2, cf3 = st.columns(3)
-                with cf1: show_passed = st.checkbox("Passed", value=True)
-                with cf2: show_timeout = st.checkbox("Timeout", value=True)
-                with cf3: show_failed = st.checkbox("Failed", value=True)
+                # 2. Checkboxes (Compact)
+                c1, c2, c3, _ = st.columns([0.2, 0.2, 0.2, 1])
+                with c1: show_passed = st.checkbox("Passed", value=True)
+                with c2: show_timeout = st.checkbox("Timeout", value=True)
+                with c3: show_failed = st.checkbox("Failed", value=True)
                 
                 selected_filters = []
                 if show_passed: selected_filters.append("Passed")
@@ -499,33 +505,33 @@ with tab2:
                 if show_failed: selected_filters.append("Failed")
                 
                 if not selected_filters:
-                    chart_placeholder.warning("⚠️ Please select at least one status to visualize.")
+                    st.warning("⚠️ Please select at least one status.")
                 else:
                     df_plot = df_viz[df_viz['Status'].isin(selected_filters)]
                     status_str = ", ".join(selected_filters)
                     
-                    # 3. Generate Chart (Height 450)
+                    # 3. Chart (Height 420 to balance with header+checkboxes ~ 550 total)
                     fig_curve = px.line(df_plot, x="Day", y="Profit_Plot", color="Status", line_group="SimID", 
                                         color_discrete_map=color_map, 
-                                        title=f"Profit Curves ({status_str}): {len(df_plot['SimID'].unique())} Sample Paths",
                                         hover_data={"Profit": True, "Profit_Plot": False}) 
                     
                     fig_curve.add_hline(y=0, line_dash="dash", line_color="black", annotation_text="Start ($0)")
                     fig_curve.add_hline(y=profit_target, line_dash="dot", line_color="#009E73", annotation_text=f"Target (+${profit_target})")
                     
                     fig_curve.update_traces(opacity=0.5, line=dict(width=1))
-                    # Reduced bottom margin (b=20) to sit closer to checkboxes
-                    fig_curve.update_layout(height=450, margin=dict(l=20, r=20, t=60, b=20), yaxis_title="Profit ($)")
+                    # Reduced margins to sit closer to checkboxes
+                    fig_curve.update_layout(height=420, margin=dict(l=20, r=20, t=20, b=20), yaxis_title="Profit ($)")
                     
-                    # 4. Push Chart to Placeholder at the TOP
-                    chart_placeholder.plotly_chart(fig_curve, use_container_width=True)
+                    st.plotly_chart(fig_curve, use_container_width=True)
 
             r2_1, r2_2 = st.columns(2)
             with r2_1: plot_hist_with_stats(raw_data["Pass Days"], "Days to Pass Distribution", "#6A0DAD", "Days", 20, percentile=95) 
+            # Updated to Orange Red (#FF4500) for distinct survivor pain
             with r2_2: plot_hist_with_stats(raw_data["Passed Loss Streaks"], "Passed : Max Loss Streaks", "#FF4500", "Streak Count", 15, percentile=95) 
 
             r3_1, r3_2 = st.columns(2)
             with r3_1: plot_hist_with_stats(raw_data["Win Streaks"], "Max Win Streaks", "#2CA02C", "Streak Count", 15, percentile=95) 
+            # Updated to Dark Red (#8B0000) for deepest risk
             with r3_2: plot_hist_with_stats(raw_data["Loss Streaks"], "All : Max Loss Streaks", "#8B0000", "Streak Count", 15, percentile=95) 
 
             st.caption(f"Distributions from {num_simulations} runs. Black Solid Line = Median, Blue Dashed Line = Average.")
