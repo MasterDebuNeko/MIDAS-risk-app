@@ -4,7 +4,6 @@ import pandas as pd
 import plotly.express as px
 
 # --- Page Configuration ---
-# [CHANGE 1] Browser Tab Title
 st.set_page_config(page_title="Risk Simulator", layout="wide")
 
 # --- CSS Styling ---
@@ -15,7 +14,7 @@ st.markdown("""
     .small-font { font-size: 11px; color: #999; margin-top: -12px; margin-bottom: 10px; font-weight: 300; font-style: italic; }
     .avg-text { font-size: 13px; color: #888; margin-top: -15px; margin-bottom: 10px; font-weight: 400; }
     
-    /* Compact Checkbox Styling */
+    /* Compact Checkbox Styling - Global */
     .stCheckbox { margin-top: -10px; margin-bottom: -10px; }
     .stCheckbox label { font-size: 12px !important; } 
     
@@ -29,7 +28,7 @@ st.markdown("""
         font-size: 12px;
         color: #666;
         text-align: center;
-        margin-top: -5px; /* Adjusted to sit nicely below chart */
+        margin-top: -5px; 
         font-family: monospace;
     }
 </style>
@@ -44,14 +43,12 @@ if 'deep_dive_data' not in st.session_state:
     st.session_state.deep_dive_data = None
 
 # --- Header ---
-# [CHANGE 2] Main App Title
 st.title("🛡️ Risk Simulator")
 st.markdown("**Monte Carlo Analysis: Probability, Efficiency, and Risk Metrics.**")
 
 # --- Sidebar Inputs ---
 st.sidebar.header("⚙️ Settings")
 
-# [CHANGE 3] Sidebar Expander Title
 with st.sidebar.expander("📝 Risk Rules", expanded=True):
     account_size = st.number_input("Account Size ($)", value=50000, step=1000)
     profit_target = st.number_input("Profit Target ($)", value=3000, step=100)
@@ -360,10 +357,18 @@ with tab1:
         # 8. Passed Worst Case Loss (Pass Scenarios Only)
         with col8: draw_heatmap("Passed Worst Case Loss (95%)", "Oranges", "🥵 8. Passed: Worst Case Loss (95%)", "🟧 **Survivor Pain.** Worst case streak even for those who passed (Orange Red).")
 
-        st.divider(); st.subheader("📋 Comprehensive Performance Metrics")
+        st.divider()
         
-        # --- Checkbox to toggle full table height ---
-        show_all_rows = st.checkbox("Show Full Table (Expand Height)", value=False)
+        # --- Layout: Header (Left) | Checkbox (Right) ---
+        col_head, col_opt = st.columns([0.85, 0.15]) # Adjusted ratio to push checkbox to the far right
+        
+        with col_head:
+            st.subheader("📋 Comprehensive Performance Metrics")
+            
+        with col_opt:
+            st.write("") # Vertical spacer
+            st.write("") 
+            show_all_rows = st.checkbox("Show Full Table", value=False)
         
         # Calculate dynamic height
         if show_all_rows:
@@ -393,7 +398,7 @@ with tab1:
             height=table_height
         )
         
-        # --- NEW SECTION: SIMULATION SETTINGS REFERENCE ---
+        # --- SIMULATION SETTINGS REFERENCE ---
         st.markdown("---")
         st.markdown("### ⚙️ Simulation Settings Reference")
         
