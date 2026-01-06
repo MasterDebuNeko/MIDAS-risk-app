@@ -473,33 +473,38 @@ with tab2:
         # Make histogram bars slightly transparent so lines behind/inside are visible
         fig.update_traces(marker_opacity=0.7)
 
-        # Median - Solid Line (Consistent Color)
-        fig.add_vline(x=median_val, line_width=3, line_dash="solid", line_color=color_hex) 
-        # Average - Dash Line (Consistent Color)
-        fig.add_vline(x=mean_val, line_width=3, line_dash="dash", line_color=color_hex)   
+        # [MODIFIED] Use add_shape with STAGGERED GAPS logic
+        # 1. Median (Lowest Tier)
+        # Line stops at 1.02, Text starts at 1.05
+        fig.add_shape(type="line", x0=median_val, x1=median_val, y0=0, y1=1.02, yref="paper", xref="x",
+                      line=dict(color=color_hex, width=2, dash="solid"))
         
-        # Annotations (Fixed Position: Center + Staggered Height)
-        # 1. Median (Lowest)
-        fig.add_annotation(x=median_val, y=1.02, yref="paper", text=f"Med: {median_val:.1f}", 
+        fig.add_annotation(x=median_val, y=1.05, yref="paper", text=f"Med: {median_val:.1f}", 
                            showarrow=False, font=dict(color=color_hex, size=11, weight="bold"), 
-                           xanchor="center", bgcolor="rgba(255,255,255,0.7)")
+                           xanchor="center", yanchor="bottom", bgcolor="rgba(255,255,255,0.7)")
         
-        # 2. Average (Middle)
-        fig.add_annotation(x=mean_val, y=1.15, yref="paper", text=f"Avg: {mean_val:.1f}", 
+        # 2. Average (Middle Tier)
+        # Line stops at 1.15, Text starts at 1.18
+        fig.add_shape(type="line", x0=mean_val, x1=mean_val, y0=0, y1=1.15, yref="paper", xref="x",
+                      line=dict(color=color_hex, width=2, dash="dash"))
+        
+        fig.add_annotation(x=mean_val, y=1.18, yref="paper", text=f"Avg: {mean_val:.1f}", 
                            showarrow=False, font=dict(color=color_hex, size=11, weight="bold"), 
-                           xanchor="center", bgcolor="rgba(255,255,255,0.7)")
+                           xanchor="center", yanchor="bottom", bgcolor="rgba(255,255,255,0.7)")
         
         if percentile:
             p_val = np.percentile(data, percentile)
-            # 95% Line - Dotted (Consistent Color)
-            fig.add_vline(x=p_val, line_width=2, line_dash="dot", line_color=color_hex) 
-            # 3. Percentile (Highest)
-            fig.add_annotation(x=p_val, y=1.28, yref="paper", text=f"{percentile}%: {p_val:.1f}", 
+            # 3. Percentile (Highest Tier)
+            # Line stops at 1.28, Text starts at 1.31
+            fig.add_shape(type="line", x0=p_val, x1=p_val, y0=0, y1=1.28, yref="paper", xref="x",
+                          line=dict(color=color_hex, width=2, dash="dot"))
+            
+            fig.add_annotation(x=p_val, y=1.31, yref="paper", text=f"{percentile}%: {p_val:.1f}", 
                                showarrow=False, font=dict(color=color_hex, size=10, weight="bold"), 
-                               xanchor="center", bgcolor="rgba(255,255,255,0.7)")
+                               xanchor="center", yanchor="bottom", bgcolor="rgba(255,255,255,0.7)")
 
-        # Increased top margin to 80 to prevent clipping
-        fig.update_layout(height=400, showlegend=False, margin=dict(l=20, r=20, t=80, b=20), bargap=0.1)
+        # [MODIFIED] Increased top margin to 110 to accommodate 3 tiers
+        fig.update_layout(height=400, showlegend=False, margin=dict(l=20, r=20, t=110, b=20), bargap=0.1)
         st.plotly_chart(fig, use_container_width=True)
 
     def plot_pnl_hist(data_pnl, title, color_map):
