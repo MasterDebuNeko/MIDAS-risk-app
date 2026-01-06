@@ -170,7 +170,10 @@ def run_monte_carlo(risk_val, trades_day_val):
     avg_max_loss_streak = sum(all_max_loss_streaks) / num_simulations
     median_max_loss_streak = np.median(all_max_loss_streaks)
     
-    # Worst Case Loss Streak (95%) for PASSED scenarios only
+    # 1. Worst Case Loss Streak (All Scenarios)
+    worst_case_loss_95 = np.percentile(all_max_loss_streaks, 95)
+    
+    # 2. Worst Case Loss Streak (Passed Scenarios ONLY)
     if passed_max_loss_streaks:
         passed_worst_case_loss_95 = np.percentile(passed_max_loss_streaks, 95)
     else:
@@ -191,7 +194,8 @@ def run_monte_carlo(risk_val, trades_day_val):
         "Median Max Win Streak": round(median_max_win_streak, 1),
         "Avg Max Loss Streak": round(avg_max_loss_streak, 1),
         "Median Max Loss Streak": round(median_max_loss_streak, 1),
-        "Passed Worst Case Loss (95%)": round(passed_worst_case_loss_95, 1), # New Metric
+        "Worst Case Loss Streak (95%)": round(worst_case_loss_95, 1),         # All Scenarios
+        "Passed Worst Case Loss (95%)": round(passed_worst_case_loss_95, 1), # Passed Scenarios Only
         "Raw Data": {
             "PnL": all_final_pnl, "Pass Days": all_pass_days, "Fail Days": all_fail_days,
             "Win Streaks": all_max_win_streaks, "Loss Streaks": all_max_loss_streaks,
@@ -288,8 +292,8 @@ with tab1:
             cols = ["Risk ($)", "Risk (%)", "Trades/Day", 
                     "Pass Rate (%)", "Median Days Pass", 
                     "Fail Rate (%)", "Timeout Rate (%)",
-                    "Median Max Loss Streak", "Passed Worst Case Loss (95%)",
-                    "Median Max Win Streak"]
+                    "Median Max Loss Streak", "Worst Case Loss Streak (95%)",
+                    "Median Max Win Streak", "Passed Worst Case Loss (95%)"]
             
             st.session_state.sim_results = df_summary[cols]
             
@@ -325,15 +329,15 @@ with tab1:
         # 5. Median Max Loss Streak
         col5, col6 = st.columns(2)
         with col5: draw_heatmap("Median Max Loss Streak", "Reds", "🥶 5. Median Max Loss Streak", "🟥 **Pain Index.** Median consecutive losses (Strong Red).")
-        # 6. Worst Case Loss Streak (Passed Only)
-        with col6: draw_heatmap("Passed Worst Case Loss (95%)", "Oranges", "💀 6. Passed: Worst Case Loss (95%)", "🟧 **Survivor Pain.** Softer color indicating loss in winning scenarios.")
+        # 6. Worst Case Loss Streak (All Scenarios)
+        with col6: draw_heatmap("Worst Case Loss Streak (95%)", "YlOrRd", "💀 6. All: Worst Case Loss (95%)", "🟥 **Extreme Risk.** 95% chance loss streak won't exceed this (All Scenarios).")
 
         # 7. Median Max Win Streak
         col7, col8 = st.columns(2)
         with col7: draw_heatmap("Median Max Win Streak", "Greens", "🍀 7. Median Max Win Streak", "🟩 **Momentum.** Median consecutive wins.")
         
-        # 8. Blank Slot
-        with col8: st.write("")
+        # 8. Passed Worst Case Loss (Pass Scenarios Only)
+        with col8: draw_heatmap("Passed Worst Case Loss (95%)", "Oranges", "🥵 8. Passed: Worst Case Loss (95%)", "🟧 **Survivor Pain.** Worst case streak even for those who passed.")
 
         st.divider(); st.subheader("📋 Comprehensive Performance Metrics")
         
@@ -343,20 +347,20 @@ with tab1:
                 "Pass Rate (%)": "{:.1f}%", "Fail Rate (%)": "{:.1f}%", "Timeout Rate (%)": "{:.1f}%",
                 "Median Days Pass": "{:.1f}",
                 "Median Max Loss Streak": "{:.1f}", 
-                "Passed Worst Case Loss (95%)": "{:.1f}",
-                "Median Max Win Streak": "{:.1f}"
+                "Worst Case Loss Streak (95%)": "{:.1f}",
+                "Median Max Win Streak": "{:.1f}",
+                "Passed Worst Case Loss (95%)": "{:.1f}"
             })
             .background_gradient(subset=["Pass Rate (%)"], cmap="Blues")
             .background_gradient(subset=["Fail Rate (%)"], cmap="Reds")
             .background_gradient(subset=["Timeout Rate (%)"], cmap="Greys")
             .background_gradient(subset=["Median Days Pass"], cmap="Purples")
-            .background_gradient(subset=["Median Max Loss Streak"], cmap="Reds")   # Strong Red
-            .background_gradient(subset=["Passed Worst Case Loss (95%)"], cmap="Oranges") # Soft Orange
-            .background_gradient(subset=["Median Max Win Streak"], cmap="Greens"),
+            .background_gradient(subset=["Median Max Loss Streak"], cmap="Reds")   
+            .background_gradient(subset=["Worst Case Loss Streak (95%)"], cmap="YlOrRd")
+            .background_gradient(subset=["Median Max Win Streak"], cmap="Greens")
+            .background_gradient(subset=["Passed Worst Case Loss (95%)"], cmap="Oranges"),
             use_container_width=True
         )
-
-    else: st.info("👈 Click 'Run Full Analysis' to start.")
 
 # ================= TAB 2: DEEP DIVE =================
 with tab2:
@@ -462,7 +466,7 @@ with tab2:
                 # Plotting PROFIT instead of Equity
                 fig_curve = px.line(df_viz, x="Day", y="Profit_Plot", color="Status", line_group="SimID", 
                                     color_discrete_map=color_map, 
-                                    title=f"Profit Curves (Start @ $0): {sim_count_disp} Sample Paths",
+                                    title=f"Profit Curves: {sim_count_disp} Sample Paths",
                                     hover_data={"Profit": True, "Profit_Plot": False}) 
                 
                 # Start Line (0 Profit)
