@@ -22,6 +22,15 @@ st.markdown("""
     div[data-testid="column"] { padding: 0px !important; }
     
     h4 { margin-bottom: 5px; } 
+    
+    /* Stats Caption Style */
+    .chart-caption {
+        font-size: 12px;
+        color: #666;
+        text-align: center;
+        margin-top: -10px;
+        font-family: monospace;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -386,24 +395,25 @@ with tab2:
         # Remove title from px.histogram
         fig = px.histogram(x=data, nbins=nbins, labels={'x': label}, color_discrete_sequence=[color_hex])
         
-        # Make histogram bars slightly transparent
+        # Make histogram bars slightly transparent so lines behind/inside are visible
         fig.update_traces(marker_opacity=0.7)
 
-        # Median - Solid Line
+        # Median - Solid Line (Consistent Color)
         fig.add_vline(x=median_val, line_width=3, line_dash="solid", line_color=color_hex) 
-        # Average - Dash Line
+        # Average - Dash Line (Consistent Color)
         fig.add_vline(x=mean_val, line_width=3, line_dash="dash", line_color=color_hex)   
         
-        # Annotations
+        # Annotations (Color matches histogram, bold for visibility) - Added spaces
         fig.add_annotation(x=median_val, y=1.05, yref="paper", text=f"Med : {median_val:.1f}", showarrow=False, font=dict(color=color_hex, size=11, weight="bold"), xanchor="right")
         fig.add_annotation(x=mean_val, y=1.12, yref="paper", text=f"Avg : {mean_val:.1f}", showarrow=False, font=dict(color=color_hex, size=11, weight="bold"), xanchor="left")
         
         if percentile:
             p_val = np.percentile(data, percentile)
+            # 95% Line - Dotted (Consistent Color)
             fig.add_vline(x=p_val, line_width=2, line_dash="dot", line_color=color_hex) 
+            # Added spaces in text label
             fig.add_annotation(x=p_val, y=0.95, yref="paper", text=f"{percentile}% : {p_val:.1f}", showarrow=False, font=dict(color=color_hex, size=10, weight="bold"), xanchor="left")
 
-        # Reduced top margin since title is external
         fig.update_layout(height=350, showlegend=False, margin=dict(l=20, r=20, t=10, b=20), bargap=0.1)
         st.plotly_chart(fig, use_container_width=True)
 
@@ -415,14 +425,11 @@ with tab2:
         st.markdown(f"#### {title}")
         
         mean_val = df["PnL"].mean(); median_val = df["PnL"].median()
-        # Remove title from px.histogram
         fig = px.histogram(df, x="PnL", color="Status", nbins=50, color_discrete_map=color_map)
-        
         fig.add_vline(x=median_val, line_width=3, line_dash="solid", line_color="#333333") 
         fig.add_vline(x=mean_val, line_width=3, line_dash="dash", line_color="#000000")   
-        fig.add_annotation(x=median_val, y=1.05, yref="paper", text=f"Med : {median_val:.0f}", showarrow=False, font=dict(color="#333333", size=11))
-        
-        # Reduced top margin
+        fig.add_annotation(x=median_val, y=1.05, yref="paper", text=f"Med:{median_val:.0f}", showarrow=False, font=dict(color="#333333", size=11))
+        # Increased height to 550 to match Right Side (Chart 420 + Header + Checkboxes + Stats)
         fig.update_layout(height=550, showlegend=False, margin=dict(l=20, r=20, t=10, b=20), bargap=0.1)
         st.plotly_chart(fig, use_container_width=True)
 
@@ -533,6 +540,27 @@ with tab2:
                     fig_curve.update_layout(height=420, margin=dict(l=20, r=20, t=20, b=20), yaxis_title="Profit ($)")
                     
                     st.plotly_chart(fig_curve, use_container_width=True)
+                    
+                    # 4. Count Summary (Small Line Below Chart)
+                    unique_sims = df_viz.drop_duplicates("SimID")
+                    counts = unique_sims['Status'].value_counts()
+                    n_pass = counts.get('Passed', 0)
+                    n_time = counts.get('Timeout', 0)
+                    n_fail = counts.get('Failed', 0)
+                    
+                    # Style logic: Dim text if unchecked
+                    style_pass = "color:#0072B2; font-weight:bold" if show_passed else "color:#ccc"
+                    style_time = "color:#B6B6B6; font-weight:bold" if show_timeout else "color:#eee"
+                    style_fail = "color:#D55E00; font-weight:bold" if show_failed else "color:#ccc"
+                    
+                    st.markdown(f"""
+                    <div class='chart-caption'>
+                        Sample Counts: 
+                        <span style='{style_pass}'>Passed: {n_pass}</span> • 
+                        <span style='{style_time}'>Timeout: {n_time}</span> • 
+                        <span style='{style_fail}'>Failed: {n_fail}</span>
+                    </div>
+                    """, unsafe_allow_html=True)
 
             r2_1, r2_2 = st.columns(2)
             # Histograms with External Titles
