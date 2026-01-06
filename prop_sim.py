@@ -359,6 +359,16 @@ with tab1:
 
         st.divider(); st.subheader("📋 Comprehensive Performance Metrics")
         
+        # --- NEW: Checkbox to toggle full table height ---
+        show_all_rows = st.checkbox("Show Full Table (Expand Height)", value=False)
+        
+        # Calculate dynamic height: (rows + header) * approx_row_height
+        # Use a safe default of 400px if not expanded
+        if show_all_rows:
+            table_height = (len(df_summary) + 1) * 35 + 3 
+        else:
+            table_height = 400
+
         st.dataframe(
             df_summary.style.format({
                 "Risk ($)": "${:.0f}", "Risk (%)": "{:.2f}%", 
@@ -377,7 +387,8 @@ with tab1:
             .background_gradient(subset=["Worst Case Loss Streak (95%)"], cmap="Reds")
             .background_gradient(subset=["Median Max Win Streak"], cmap="Greens")
             .background_gradient(subset=["Passed Worst Case Loss (95%)"], cmap="Oranges"),
-            use_container_width=True
+            use_container_width=True,
+            height=table_height # Apply dynamic height
         )
         
         # --- NEW SECTION: SIMULATION SETTINGS REFERENCE ---
@@ -390,19 +401,19 @@ with tab1:
         c1, c2, c3 = st.columns(3)
         
         with c1:
-            st.markdown(f"• **Account:** ${p['acc']:,.0f}")
             st.markdown(f"• **Profit Target:** ${p['tgt']:,.0f}")
-            st.markdown(f"• **Max Daily Drawdown:** ${p['mdd']:,.0f}")
+            st.markdown(f"• **Max Total Drawdown:** ${p['mtd']:,.0f}")
+            st.markdown(f"• **Win Rate:** {p['win']}%")
             
         with c2:
-            st.markdown(f"• **Win Rate:** {p['win']}%")
             st.markdown(f"• **Risk/Reward Ratio:** 1:{p['rr']}")
-            st.markdown(f"• **Personal Daily Limit:** {p['r_lim']}R")
+            st.markdown(f"• **No. of Trades per day:** {p['t_in']}")
+            st.markdown(f"• **Risk Amount:** {p['r_in']}")
             
         with c3:
-            st.markdown(f"• **Simulations:** {p['sims']:,} runs")
-            st.markdown(f"• **Max Days:** {p['days']} days")
-            st.markdown(f"• **Risk Amount:** {p['r_in']}")
+            st.markdown(f"• **Daily Loss Limit (R):** {p['r_lim']}R")
+            st.markdown(f"• **Simulation per scenario:** {p['sims']:,}")
+            st.markdown(f"• **Max Days to Trade:** {p['days']}")
 
 # ================= TAB 2: DEEP DIVE =================
 with tab2:
@@ -566,8 +577,6 @@ with tab2:
                                         hover_data={"Profit": True, "Profit_Plot": False}) 
                     
                     fig_curve.add_hline(y=0, line_dash="dash", line_color="black", annotation_text="Start ($0)")
-                    
-                    # Corrected Line: added :.0f to profit_target inside f-string and closed the parenthesis correctly
                     fig_curve.add_hline(y=profit_target, line_dash="dot", line_color="#009E73", annotation_text=f"Target (+${profit_target:,.0f})")
                     
                     fig_curve.update_traces(opacity=0.5, line=dict(width=1))
