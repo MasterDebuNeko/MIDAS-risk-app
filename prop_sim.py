@@ -479,10 +479,27 @@ with tab2:
                 plot_pnl_hist(raw_data["PnL"], "Final PnL Distribution", color_map)
             
             with r1_right: 
+                # Curve Filter
+                curve_filter = st.selectbox("Show Curves:", ["ALL", "Passed", "Timeout", "Failed", "Passed + Timeout", "Timeout + Failed"])
+                
+                # Apply Filter
+                if curve_filter == "ALL":
+                    df_plot = df_viz
+                elif curve_filter == "Passed":
+                    df_plot = df_viz[df_viz['Status'] == 'Passed']
+                elif curve_filter == "Timeout":
+                    df_plot = df_viz[df_viz['Status'] == 'Timeout']
+                elif curve_filter == "Failed":
+                    df_plot = df_viz[df_viz['Status'] == 'Failed']
+                elif curve_filter == "Passed + Timeout":
+                    df_plot = df_viz[df_viz['Status'].isin(['Passed', 'Timeout'])]
+                elif curve_filter == "Timeout + Failed":
+                    df_plot = df_viz[df_viz['Status'].isin(['Timeout', 'Failed'])]
+                
                 # Plotting PROFIT instead of Equity
-                fig_curve = px.line(df_viz, x="Day", y="Profit_Plot", color="Status", line_group="SimID", 
+                fig_curve = px.line(df_plot, x="Day", y="Profit_Plot", color="Status", line_group="SimID", 
                                     color_discrete_map=color_map, 
-                                    title=f"Profit Curves: {sim_count_disp} Sample Paths",
+                                    title=f"Profit Curves ({curve_filter}): {len(df_plot['SimID'].unique())} Sample Paths",
                                     hover_data={"Profit": True, "Profit_Plot": False}) 
                 
                 # Start Line (0 Profit)
