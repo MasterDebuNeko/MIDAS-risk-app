@@ -344,10 +344,10 @@ with tab1:
         # 4. Timeout Rate (%)
         with col4: draw_heatmap("Timeout Rate (%)", "Greys", "🐢 4. Timeout Rate (%)", "⬜ **Goal: Minimize.** High Grey = Too passive.")
 
-        # 5. Median Max Loss Streak
+        # 5. Median Max Loss Streak [CHANGED to 'Reds' to match All Loss Histogram]
         col5, col6 = st.columns(2)
         with col5: draw_heatmap("Median Max Loss Streak", "Reds", "🥶 5. Median Max Loss Streak", "🟥 **Pain Index.** Median consecutive losses (Strong Red).")
-        # 6. Worst Case Loss Streak (All Scenarios)
+        # 6. Worst Case Loss Streak (All Scenarios) [KEPT 'Reds']
         with col6: draw_heatmap("Worst Case Loss Streak (95%)", "Reds", "💀 6. All: Worst Case Loss (95%)", "🟥 **Extreme Risk.** 95% chance loss streak won't exceed this (Dark Red).")
 
         # 7. Median Max Win Streak
@@ -392,8 +392,8 @@ with tab1:
             .background_gradient(subset=["Fail Rate (%)"], cmap="Reds")
             .background_gradient(subset=["Timeout Rate (%)"], cmap="Greys")
             .background_gradient(subset=["Median Days Pass"], cmap="Purples")
-            .background_gradient(subset=["Median Max Loss Streak"], cmap="Reds")   
-            .background_gradient(subset=["Worst Case Loss Streak (95%)"], cmap="Reds")
+            .background_gradient(subset=["Median Max Loss Streak"], cmap="Reds")   # [CHANGED back to Reds to maintain distinct 'Red vs Orange' groups]
+            .background_gradient(subset=["Worst Case Loss Streak (95%)"], cmap="Reds") 
             .background_gradient(subset=["Median Max Win Streak"], cmap="Greens")
             .background_gradient(subset=["Passed Worst Case Loss (95%)"], cmap="Oranges"),
             use_container_width=True,
