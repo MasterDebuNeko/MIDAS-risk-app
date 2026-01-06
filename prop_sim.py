@@ -325,7 +325,7 @@ with tab1:
     if st.session_state.sim_results is not None:
         df_summary = st.session_state.sim_results
         
-        # --- [MODIFIED] Function to accept fixed_range for unified scaling ---
+        # --- Function to accept fixed_range for unified scaling ---
         def draw_heatmap(val_col, color_scale, title, caption, fixed_range=None):
             heatmap_data = df_summary.pivot(index="Trades/Day", columns="Risk ($)", values=val_col)
             
@@ -352,8 +352,7 @@ with tab1:
         # 4. Timeout Rate (%)
         with col4: draw_heatmap("Timeout Rate (%)", "Greys", "🐢 4. Timeout Rate (%)", "⬜ **Goal: Minimize.** High Grey = Too passive.")
 
-        # --- [NEW] Calculate Unified Range for ALL Loss Streaks (3 Metrics) ---
-        # Include Passed Worst Case in the min/max calculation
+        # --- Calculate Unified Range for ALL Loss Streaks (3 Metrics) ---
         loss_min = min(
             df_summary["Median Max Loss Streak"].min(), 
             df_summary["Worst Case Loss Streak (95%)"].min(),
@@ -424,10 +423,10 @@ with tab1:
             .background_gradient(subset=["Fail Rate (%)"], cmap="Reds")
             .background_gradient(subset=["Timeout Rate (%)"], cmap="Greys")
             .background_gradient(subset=["Median Days Pass"], cmap="Purples")
-            .background_gradient(subset=["Median Max Loss Streak"], cmap="Reds", vmin=loss_min, vmax=loss_max)   # [Unified Scale]
-            .background_gradient(subset=["Worst Case Loss Streak (95%)"], cmap="Reds", vmin=loss_min, vmax=loss_max) # [Unified Scale]
+            .background_gradient(subset=["Median Max Loss Streak"], cmap="Reds", vmin=loss_min, vmax=loss_max)
+            .background_gradient(subset=["Worst Case Loss Streak (95%)"], cmap="Reds", vmin=loss_min, vmax=loss_max)
             .background_gradient(subset=["Median Max Win Streak"], cmap="Greens")
-            .background_gradient(subset=["Passed Worst Case Loss (95%)"], cmap="Oranges", vmin=loss_min, vmax=loss_max), # [Unified Scale]
+            .background_gradient(subset=["Passed Worst Case Loss (95%)"], cmap="Oranges", vmin=loss_min, vmax=loss_max),
             use_container_width=True,
             height=table_height
         )
@@ -533,13 +532,14 @@ with tab2:
         t_options = [int(x.strip()) for x in trades_input.split(',')]
         r_options.sort(); t_options.sort()
         
-        c1, c2, c3, c4 = st.columns([1, 1, 1, 1.5])
+        # [MODIFIED] Button Moved to Top Left
+        viz_btn = st.button("📸 Generate Curves & Stats", key="btn_viz")
+        
+        # [MODIFIED] Inputs placed below the button
+        c1, c2, c3 = st.columns(3)
         with c1: sel_risk = st.selectbox("Select Risk ($)", r_options)
         with c2: sel_trades = st.selectbox("Select Trades/Day", t_options)
         with c3: sel_sim_count = st.number_input("No. of Lines", value=1000, min_value=100, step=500)
-        with c4: 
-            st.write(""); st.write("")
-            viz_btn = st.button("📸 Generate Curves & Stats", key="btn_viz", use_container_width=True)
 
         # --- 3. Calculation Logic (Run Only When Clicked) ---
         if viz_btn:
