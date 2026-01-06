@@ -372,16 +372,25 @@ with tab2:
         if not data: st.info(f"No data for {title}"); return
         mean_val = np.mean(data); median_val = np.median(data)
         fig = px.histogram(x=data, nbins=nbins, title=title, labels={'x': label}, color_discrete_sequence=[color_hex])
-        fig.add_vline(x=median_val, line_width=2, line_dash="solid", line_color="#333333") 
-        fig.add_vline(x=mean_val, line_width=2, line_dash="dash", line_color="#0072B2")   
+        
+        # Make histogram bars slightly transparent so lines behind/inside are visible
+        fig.update_traces(marker_opacity=0.7)
+
+        # Median - Solid Line (Consistent Color)
+        fig.add_vline(x=median_val, line_width=3, line_dash="solid", line_color=color_hex) 
+        # Average - Dash Line (Consistent Color)
+        fig.add_vline(x=mean_val, line_width=3, line_dash="dash", line_color=color_hex)   
+        
+        # Annotations (Color matches histogram, bold for visibility)
+        fig.add_annotation(x=median_val, y=1.05, yref="paper", text=f"Med:{median_val:.1f}", showarrow=False, font=dict(color=color_hex, size=11, weight="bold"), xanchor="right")
+        fig.add_annotation(x=mean_val, y=1.12, yref="paper", text=f"Avg:{mean_val:.1f}", showarrow=False, font=dict(color=color_hex, size=11, weight="bold"), xanchor="left")
         
         if percentile:
             p_val = np.percentile(data, percentile)
-            fig.add_vline(x=p_val, line_width=2, line_dash="dot", line_color="#D62728") # Red dot for 95%
-            fig.add_annotation(x=p_val, y=0.95, yref="paper", text=f"{percentile}%:{p_val:.1f}", showarrow=False, font=dict(color="#D62728", size=10), xanchor="left")
+            # 95% Line - Dotted (Consistent Color)
+            fig.add_vline(x=p_val, line_width=2, line_dash="dot", line_color=color_hex) 
+            fig.add_annotation(x=p_val, y=0.95, yref="paper", text=f"{percentile}%:{p_val:.1f}", showarrow=False, font=dict(color=color_hex, size=10, weight="bold"), xanchor="left")
 
-        fig.add_annotation(x=median_val, y=1.05, yref="paper", text=f"Med:{median_val:.1f}", showarrow=False, font=dict(color="#333333", size=10), xanchor="right")
-        fig.add_annotation(x=mean_val, y=1.12, yref="paper", text=f"Avg:{mean_val:.1f}", showarrow=False, font=dict(color="#0072B2", size=10), xanchor="left")
         fig.update_layout(height=350, showlegend=False, margin=dict(l=20, r=20, t=50, b=20), bargap=0.1)
         st.plotly_chart(fig, use_container_width=True)
 
@@ -487,11 +496,12 @@ with tab2:
 
             r2_1, r2_2 = st.columns(2)
             with r2_1: plot_hist_with_stats(raw_data["Pass Days"], "Days to Pass Distribution", "#6A0DAD", "Days", 20, percentile=95) 
-            with r2_2: plot_hist_with_stats(raw_data["Passed Loss Streaks"], "Max Loss Streaks (Passed Scenarios Only)", "#FFA07A", "Streak Count", 15, percentile=95) 
+            # Changed color to #FF7F50 (Coral) to be visible on white but soft
+            with r2_2: plot_hist_with_stats(raw_data["Passed Loss Streaks"], "Passed : Max Loss Streaks", "#FF7F50", "Streak Count", 15, percentile=95) 
 
             r3_1, r3_2 = st.columns(2)
-            with r3_1: plot_hist_with_stats(raw_data["Win Streaks"], "Max Win Streaks", "#2CA02C", "Streak Count", 15) 
-            with r3_2: plot_hist_with_stats(raw_data["Loss Streaks"], "Max Loss Streaks (All Scenarios)", "#D62728", "Streak Count", 15, percentile=95) 
+            with r3_1: plot_hist_with_stats(raw_data["Win Streaks"], "Max Win Streaks", "#2CA02C", "Streak Count", 15, percentile=95) 
+            with r3_2: plot_hist_with_stats(raw_data["Loss Streaks"], "All : Max Loss Streaks", "#D62728", "Streak Count", 15, percentile=95) 
 
             st.caption(f"Distributions from {num_simulations} runs. Black Solid Line = Median, Blue Dashed Line = Average.")
 
