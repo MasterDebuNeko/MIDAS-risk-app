@@ -4,7 +4,8 @@ import pandas as pd
 import plotly.express as px
 
 # --- Page Configuration ---
-st.set_page_config(page_title="Prop Firm Simulator", layout="wide")
+# [CHANGE 1] Browser Tab Title
+st.set_page_config(page_title="Risk Simulator", layout="wide")
 
 # --- CSS Styling ---
 st.markdown("""
@@ -43,13 +44,15 @@ if 'deep_dive_data' not in st.session_state:
     st.session_state.deep_dive_data = None
 
 # --- Header ---
-st.title("🛡️ Prop Firm Simulator")
+# [CHANGE 2] Main App Title
+st.title("🛡️ Risk Simulator")
 st.markdown("**Monte Carlo Analysis: Probability, Efficiency, and Risk Metrics.**")
 
 # --- Sidebar Inputs ---
 st.sidebar.header("⚙️ Settings")
 
-with st.sidebar.expander("📝 Prop Firm Rules", expanded=True):
+# [CHANGE 3] Sidebar Expander Title
+with st.sidebar.expander("📝 Risk Rules", expanded=True):
     account_size = st.number_input("Account Size ($)", value=50000, step=1000)
     profit_target = st.number_input("Profit Target ($)", value=3000, step=100)
     max_daily_dd = st.number_input("Max Daily Drawdown ($)", value=2500, step=100)
@@ -359,11 +362,10 @@ with tab1:
 
         st.divider(); st.subheader("📋 Comprehensive Performance Metrics")
         
-        # --- NEW: Checkbox to toggle full table height ---
+        # --- Checkbox to toggle full table height ---
         show_all_rows = st.checkbox("Show Full Table (Expand Height)", value=False)
         
-        # Calculate dynamic height: (rows + header) * approx_row_height
-        # Use a safe default of 400px if not expanded
+        # Calculate dynamic height
         if show_all_rows:
             table_height = (len(df_summary) + 1) * 35 + 3 
         else:
@@ -388,7 +390,7 @@ with tab1:
             .background_gradient(subset=["Median Max Win Streak"], cmap="Greens")
             .background_gradient(subset=["Passed Worst Case Loss (95%)"], cmap="Oranges"),
             use_container_width=True,
-            height=table_height # Apply dynamic height
+            height=table_height
         )
         
         # --- NEW SECTION: SIMULATION SETTINGS REFERENCE ---
