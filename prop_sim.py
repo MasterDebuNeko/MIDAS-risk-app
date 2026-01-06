@@ -368,12 +368,18 @@ with tab2:
     st.markdown("### 📈 Visualize Specific Scenario")
     
     # --- 1. Helper Functions ---
-    def plot_hist_with_stats(data, title, color_hex, label="Count", nbins=50):
+    def plot_hist_with_stats(data, title, color_hex, label="Count", nbins=50, percentile=None):
         if not data: st.info(f"No data for {title}"); return
         mean_val = np.mean(data); median_val = np.median(data)
         fig = px.histogram(x=data, nbins=nbins, title=title, labels={'x': label}, color_discrete_sequence=[color_hex])
         fig.add_vline(x=median_val, line_width=2, line_dash="solid", line_color="#333333") 
         fig.add_vline(x=mean_val, line_width=2, line_dash="dash", line_color="#0072B2")   
+        
+        if percentile:
+            p_val = np.percentile(data, percentile)
+            fig.add_vline(x=p_val, line_width=2, line_dash="dot", line_color="#D62728") # Red dot for 95%
+            fig.add_annotation(x=p_val, y=0.95, yref="paper", text=f"{percentile}%:{p_val:.1f}", showarrow=False, font=dict(color="#D62728", size=10), xanchor="left")
+
         fig.add_annotation(x=median_val, y=1.05, yref="paper", text=f"Med:{median_val:.1f}", showarrow=False, font=dict(color="#333333", size=10), xanchor="right")
         fig.add_annotation(x=mean_val, y=1.12, yref="paper", text=f"Avg:{mean_val:.1f}", showarrow=False, font=dict(color="#0072B2", size=10), xanchor="left")
         fig.update_layout(height=350, showlegend=False, margin=dict(l=20, r=20, t=50, b=20), bargap=0.1)
@@ -448,8 +454,8 @@ with tab2:
             m1, m2, m3, m4 = st.columns(4)
             with m1: metric_card("🍀 Median Win Streak", f"{stats['Median Max Win Streak']}", f"{stats['Avg Max Win Streak']}")
             with m2: metric_card("🥶 Median Loss Streak", f"{stats['Median Max Loss Streak']}", f"{stats['Avg Max Loss Streak']}")
-            with m3: metric_card("🥵 Passed: Worst Case Loss", f"{stats['Passed Worst Case Loss (95%)']}")
-            with m4: metric_card("💀 All: Worst Case Loss", f"{stats['Worst Case Loss Streak (95%)']}")
+            with m3: metric_card("🥵 Passed: Worst Case Loss (95%)", f"{stats['Passed Worst Case Loss (95%)']}")
+            with m4: metric_card("💀 All: Worst Case Loss (95%)", f"{stats['Worst Case Loss Streak (95%)']}")
             
             st.divider()
 
@@ -481,12 +487,13 @@ with tab2:
 
             r2_1, r2_2 = st.columns(2)
             with r2_1: plot_hist_with_stats(raw_data["Pass Days"], "Days to Pass Distribution", "#6A0DAD", "Days", 20) 
-            with r2_2: plot_hist_with_stats(raw_data["Passed Loss Streaks"], "Max Loss Streaks (Passed Scenarios Only)", "#FFA07A", "Streak Count", 15) 
+            # Add 95% line for Passed Loss Streaks
+            with r2_2: plot_hist_with_stats(raw_data["Passed Loss Streaks"], "Max Loss Streaks (Passed Scenarios Only)", "#FFA07A", "Streak Count", 15, percentile=95) 
 
             r3_1, r3_2 = st.columns(2)
             with r3_1: plot_hist_with_stats(raw_data["Win Streaks"], "Max Win Streaks", "#2CA02C", "Streak Count", 15) 
-            # Updated to Red (#D62728) to match Heatmap (Reds)
-            with r3_2: plot_hist_with_stats(raw_data["Loss Streaks"], "Max Loss Streaks (All Scenarios)", "#D62728", "Streak Count", 15) 
+            # Add 95% line for All Loss Streaks
+            with r3_2: plot_hist_with_stats(raw_data["Loss Streaks"], "Max Loss Streaks (All Scenarios)", "#D62728", "Streak Count", 15, percentile=95) 
 
             st.caption(f"Distributions from {num_simulations} runs. Black Solid Line = Median, Blue Dashed Line = Average.")
 
