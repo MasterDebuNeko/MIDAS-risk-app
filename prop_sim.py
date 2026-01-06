@@ -402,7 +402,7 @@ with tab1:
             st.write("") 
             show_all_rows = st.checkbox("Show Full Table", value=False)
         
-       # --- SMART HEIGHT CALCULATION ---
+        # --- SMART HEIGHT CALCULATION ---
         natural_height = (len(df_summary) + 1) * 35 + 3
         
         if show_all_rows:
@@ -410,7 +410,6 @@ with tab1:
         else:
             table_height = min(natural_height, 400)
 
-        # Apply Unified Scale (vmin, vmax) to the DataFrame styling as well
         st.dataframe(
             df_summary.style.format({
                 "Risk ($)": "${:.0f}", "Risk (%)": "{:.2f}%", 
@@ -425,12 +424,10 @@ with tab1:
             .background_gradient(subset=["Fail Rate (%)"], cmap="Reds")
             .background_gradient(subset=["Timeout Rate (%)"], cmap="Greys")
             .background_gradient(subset=["Median Days Pass"], cmap="Purples")
-            # --- UNIFIED SCALE APPLIED HERE (vmin/vmax) ---
-            .background_gradient(subset=["Median Max Loss Streak"], cmap="Reds", vmin=loss_min, vmax=loss_max)
-            .background_gradient(subset=["Worst Case Loss Streak (95%)"], cmap="Reds", vmin=loss_min, vmax=loss_max)
-            .background_gradient(subset=["Passed Worst Case Loss (95%)"], cmap="Oranges", vmin=loss_min, vmax=loss_max)
-            # ---------------------------------------------
-            .background_gradient(subset=["Median Max Win Streak"], cmap="Greens"),
+            .background_gradient(subset=["Median Max Loss Streak"], cmap="Reds", vmin=loss_min, vmax=loss_max)   # [Unified Scale]
+            .background_gradient(subset=["Worst Case Loss Streak (95%)"], cmap="Reds", vmin=loss_min, vmax=loss_max) # [Unified Scale]
+            .background_gradient(subset=["Median Max Win Streak"], cmap="Greens")
+            .background_gradient(subset=["Passed Worst Case Loss (95%)"], cmap="Oranges", vmin=loss_min, vmax=loss_max), # [Unified Scale]
             use_container_width=True,
             height=table_height
         )
@@ -493,7 +490,8 @@ with tab2:
             # Added spaces in text label
             fig.add_annotation(x=p_val, y=0.95, yref="paper", text=f"{percentile}% : {p_val:.1f}", showarrow=False, font=dict(color=color_hex, size=10, weight="bold"), xanchor="left")
 
-        fig.update_layout(height=350, showlegend=False, margin=dict(l=20, r=20, t=10, b=20), bargap=0.1)
+        # [FIXED] Increased top margin from t=10 to t=40 to show 'Avg' label
+        fig.update_layout(height=350, showlegend=False, margin=dict(l=20, r=20, t=40, b=20), bargap=0.1)
         st.plotly_chart(fig, use_container_width=True)
 
     def plot_pnl_hist(data_pnl, title, color_map):
