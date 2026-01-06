@@ -28,7 +28,7 @@ st.markdown("""
         font-size: 12px;
         color: #666;
         text-align: center;
-        margin-top: -10px;
+        margin-top: -5px; /* Adjusted to sit nicely below chart */
         font-family: monospace;
     }
 </style>
@@ -424,14 +424,22 @@ with tab2:
         # Use st.markdown for title
         st.markdown(f"#### {title}")
         
-        mean_val = df["PnL"].mean(); median_val = df["PnL"].median()
         fig = px.histogram(df, x="PnL", color="Status", nbins=50, color_discrete_map=color_map)
-        fig.add_vline(x=median_val, line_width=3, line_dash="solid", line_color="#333333") 
-        fig.add_vline(x=mean_val, line_width=3, line_dash="dash", line_color="#000000")   
-        fig.add_annotation(x=median_val, y=1.05, yref="paper", text=f"Med:{median_val:.0f}", showarrow=False, font=dict(color="#333333", size=11))
+        
+        # Removed Lines and Annotations
+        
         # Increased height to 550 to match Right Side (Chart 420 + Header + Checkboxes + Stats)
         fig.update_layout(height=550, showlegend=False, margin=dict(l=20, r=20, t=10, b=20), bargap=0.1)
         st.plotly_chart(fig, use_container_width=True)
+        
+        # Add legend below using style_pass colors from code logic
+        st.markdown("""
+        <div class='chart-caption'>
+            <span style='color:#0072B2; font-weight:bold'>■ Passed</span> &nbsp;
+            <span style='color:#B6B6B6; font-weight:bold'>■ Timeout</span> &nbsp;
+            <span style='color:#D55E00; font-weight:bold'>■ Failed</span>
+        </div>
+        """, unsafe_allow_html=True)
 
     # --- 2. Input Section ---
     try:
@@ -563,13 +571,13 @@ with tab2:
                     """, unsafe_allow_html=True)
 
             r2_1, r2_2 = st.columns(2)
-            # Histograms with External Titles
-            with r2_1: plot_hist_with_stats(raw_data["Pass Days"], "Days to Pass Distribution", "#6A0DAD", "Days", 20, percentile=95) 
-            with r2_2: plot_hist_with_stats(raw_data["Passed Loss Streaks"], "Passed : Max Loss Streaks", "#FF4500", "Streak Count", 15, percentile=95) 
+            # Histograms with External Titles & Icons
+            with r2_1: plot_hist_with_stats(raw_data["Pass Days"], "⏳ Days to Pass Distribution", "#6A0DAD", "Days", 20, percentile=95) 
+            with r2_2: plot_hist_with_stats(raw_data["Passed Loss Streaks"], "🥵 Passed : Max Loss Streaks", "#FF4500", "Streak Count", 15, percentile=95) 
 
             r3_1, r3_2 = st.columns(2)
-            with r3_1: plot_hist_with_stats(raw_data["Win Streaks"], "Max Win Streaks", "#2CA02C", "Streak Count", 15, percentile=95) 
-            with r3_2: plot_hist_with_stats(raw_data["Loss Streaks"], "All : Max Loss Streaks", "#8B0000", "Streak Count", 15, percentile=95) 
+            with r3_1: plot_hist_with_stats(raw_data["Win Streaks"], "🍀 Max Win Streaks", "#2CA02C", "Streak Count", 15, percentile=95) 
+            with r3_2: plot_hist_with_stats(raw_data["Loss Streaks"], "💀 All : Max Loss Streaks", "#8B0000", "Streak Count", 15, percentile=95) 
 
             st.caption(f"Distributions from {num_simulations} runs. Black Solid Line = Median, Blue Dashed Line = Average.")
 
