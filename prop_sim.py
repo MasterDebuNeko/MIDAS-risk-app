@@ -331,14 +331,14 @@ with tab1:
         col5, col6 = st.columns(2)
         with col5: draw_heatmap("Median Max Loss Streak", "Reds", "🥶 5. Median Max Loss Streak", "🟥 **Pain Index.** Median consecutive losses (Strong Red).")
         # 6. Worst Case Loss Streak (All Scenarios)
-        with col6: draw_heatmap("Worst Case Loss Streak (95%)", "YlOrRd", "💀 6. All: Worst Case Loss (95%)", "🟥 **Extreme Risk.** 95% chance loss streak won't exceed this (All Scenarios).")
+        with col6: draw_heatmap("Worst Case Loss Streak (95%)", "Reds", "💀 6. All: Worst Case Loss (95%)", "🟥 **Extreme Risk.** 95% chance loss streak won't exceed this (Dark Red).")
 
         # 7. Median Max Win Streak
         col7, col8 = st.columns(2)
         with col7: draw_heatmap("Median Max Win Streak", "Greens", "🍀 7. Median Max Win Streak", "🟩 **Momentum.** Median consecutive wins.")
         
         # 8. Passed Worst Case Loss (Pass Scenarios Only)
-        with col8: draw_heatmap("Passed Worst Case Loss (95%)", "Oranges", "🥵 8. Passed: Worst Case Loss (95%)", "🟧 **Survivor Pain.** Worst case streak even for those who passed.")
+        with col8: draw_heatmap("Passed Worst Case Loss (95%)", "Oranges", "🥵 8. Passed: Worst Case Loss (95%)", "🟧 **Survivor Pain.** Worst case streak even for those who passed (Orange Red).")
 
         st.divider(); st.subheader("📋 Comprehensive Performance Metrics")
         
@@ -357,7 +357,7 @@ with tab1:
             .background_gradient(subset=["Timeout Rate (%)"], cmap="Greys")
             .background_gradient(subset=["Median Days Pass"], cmap="Purples")
             .background_gradient(subset=["Median Max Loss Streak"], cmap="Reds")   
-            .background_gradient(subset=["Worst Case Loss Streak (95%)"], cmap="YlOrRd")
+            .background_gradient(subset=["Worst Case Loss Streak (95%)"], cmap="Reds")
             .background_gradient(subset=["Median Max Win Streak"], cmap="Greens")
             .background_gradient(subset=["Passed Worst Case Loss (95%)"], cmap="Oranges"),
             use_container_width=True
@@ -496,12 +496,13 @@ with tab2:
 
             r2_1, r2_2 = st.columns(2)
             with r2_1: plot_hist_with_stats(raw_data["Pass Days"], "Days to Pass Distribution", "#6A0DAD", "Days", 20, percentile=95) 
-            # Changed color to #FF7F50 (Coral) to be visible on white but soft
-            with r2_2: plot_hist_with_stats(raw_data["Passed Loss Streaks"], "Passed : Max Loss Streaks", "#FF7F50", "Streak Count", 15, percentile=95) 
+            # Updated to Orange Red (#FF4500) for distinct survivor pain
+            with r2_2: plot_hist_with_stats(raw_data["Passed Loss Streaks"], "Passed : Max Loss Streaks", "#FF4500", "Streak Count", 15, percentile=95) 
 
             r3_1, r3_2 = st.columns(2)
             with r3_1: plot_hist_with_stats(raw_data["Win Streaks"], "Max Win Streaks", "#2CA02C", "Streak Count", 15, percentile=95) 
-            with r3_2: plot_hist_with_stats(raw_data["Loss Streaks"], "All : Max Loss Streaks", "#D62728", "Streak Count", 15, percentile=95) 
+            # Updated to Dark Red (#8B0000) for deepest risk
+            with r3_2: plot_hist_with_stats(raw_data["Loss Streaks"], "All : Max Loss Streaks", "#8B0000", "Streak Count", 15, percentile=95) 
 
             st.caption(f"Distributions from {num_simulations} runs. Black Solid Line = Median, Blue Dashed Line = Average.")
 
