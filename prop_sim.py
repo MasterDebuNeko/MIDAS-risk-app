@@ -76,13 +76,13 @@ with st.sidebar.expander("📊 Trading Parameters", expanded=True):
 
 with st.sidebar.expander("🎲 Simulation Settings", expanded=True):
     st.markdown("**Simulation Counts**")
-    # แยก Input ระหว่าง Tab 1 และ Tab 2
-    sims_tab1 = st.number_input("Simulations: All Scenarios (Tab 1)", value=2000, step=1000, help="Faster for mapping many scenarios.")
-    sims_tab2 = st.number_input("Simulations: Deep Dive (Tab 2)", value=20000, step=1000, help="Higher for accurate tail risk analysis.")
+    # Separate inputs for Tab 1 and Tab 2
+    sims_tab1 = st.number_input("Simulations: All Scenarios", value=2000, step=1000, help="Faster for mapping many scenarios.")
+    sims_tab2 = st.number_input("Simulations: Deep Dive", value=20000, step=1000, help="Higher for accurate tail risk analysis.")
     max_days = st.number_input("Max Days to Trade", value=20, step=1)
     
     st.markdown("---")
-    # เพิ่ม Logic Random Seed
+    # Logic Random Seed
     use_seed = st.checkbox("🔒 Lock Random Seed", value=False)
     if use_seed:
         seed_val = st.number_input("Seed Value", value=42, step=1)
@@ -93,10 +93,10 @@ with st.sidebar.expander("🎲 Simulation Settings", expanded=True):
 
 def run_monte_carlo(risk_val, trades_day_val, n_sims_override=None, seed=None):
     """Deep simulation for Heatmap & Stats & ALL Histogram Data"""
-    # เลือกจำนวน Simulation: ถ้าส่งค่ามาให้ใช้ค่านั้น (Tab 2), ถ้าไม่ส่งให้ใช้ค่าของ Tab 1
+    # Select simulation count
     n_loop = n_sims_override if n_sims_override is not None else sims_tab1
     
-    # Set Seed ถ้ามีการกำหนด (เพื่อ A/B Testing ที่แม่นยำ)
+    # Set Seed if provided
     if seed is not None:
         np.random.seed(seed)
         
@@ -107,7 +107,7 @@ def run_monte_carlo(risk_val, trades_day_val, n_sims_override=None, seed=None):
     fail_count = 0
     timeout_count = 0
     
-    # --- Collections for Histograms ---
+    # --- Collections ---
     all_pass_days = []
     all_fail_days = []
     all_final_pnl = []
@@ -117,7 +117,6 @@ def run_monte_carlo(risk_val, trades_day_val, n_sims_override=None, seed=None):
     all_timeout_equity = []    
     all_lowest_equity = []
     
-    # New Collection: Loss Streaks ONLY for Passed Scenarios
     passed_max_loss_streaks = [] 
     
     for _ in range(n_loop):
@@ -206,15 +205,13 @@ def run_monte_carlo(risk_val, trades_day_val, n_sims_override=None, seed=None):
     avg_max_loss_streak = sum(all_max_loss_streaks) / n_loop
     median_max_loss_streak = np.median(all_max_loss_streaks)
     
-    # --- Updated Risk Metrics (95% & 99%) ---
-    # 1. Worst Case Loss Streak (All Scenarios)
+    # Risk Metrics (95% & 99%)
     worst_case_loss_95 = np.percentile(all_max_loss_streaks, 95)
-    worst_case_loss_99 = np.percentile(all_max_loss_streaks, 99) # New 99%
+    worst_case_loss_99 = np.percentile(all_max_loss_streaks, 99) 
     
-    # 2. Worst Case Loss Streak (Passed Scenarios ONLY)
     if passed_max_loss_streaks:
         passed_worst_case_loss_95 = np.percentile(passed_max_loss_streaks, 95)
-        passed_worst_case_loss_99 = np.percentile(passed_max_loss_streaks, 99) # New 99%
+        passed_worst_case_loss_99 = np.percentile(passed_max_loss_streaks, 99) 
     else:
         passed_worst_case_loss_95 = 0
         passed_worst_case_loss_99 = 0
@@ -226,6 +223,12 @@ def run_monte_carlo(risk_val, trades_day_val, n_sims_override=None, seed=None):
         "Pass Rate (%)": (pass_count / n_loop) * 100,
         "Fail Rate (%)": (fail_count / n_loop) * 100,
         "Timeout Rate (%)": (timeout_count / n_loop) * 100,
+        # Raw Counts for Deep Dive
+        "Pass Count": pass_count,
+        "Fail Count": fail_count,
+        "Timeout Count": timeout_count,
+        "Total Sims": n_loop,
+        
         "Avg Days Pass": round(avg_days_pass, 1),
         "Median Days Pass": round(median_days_pass, 1),
         "Avg Days Fail": round(avg_days_fail, 1),
@@ -235,9 +238,9 @@ def run_monte_carlo(risk_val, trades_day_val, n_sims_override=None, seed=None):
         "Avg Max Loss Streak": round(avg_max_loss_streak, 1),
         "Median Max Loss Streak": round(median_max_loss_streak, 1),
         "Worst Case Loss Streak (95%)": round(worst_case_loss_95, 1),         
-        "Worst Case Loss Streak (99%)": round(worst_case_loss_99, 1), # New Output
+        "Worst Case Loss Streak (99%)": round(worst_case_loss_99, 1), 
         "Passed Worst Case Loss (95%)": round(passed_worst_case_loss_95, 1), 
-        "Passed Worst Case Loss (99%)": round(passed_worst_case_loss_99, 1), # New Output
+        "Passed Worst Case Loss (99%)": round(passed_worst_case_loss_99, 1), 
         "Raw Data": {
             "PnL": all_final_pnl, "Pass Days": all_pass_days, "Fail Days": all_fail_days,
             "Win Streaks": all_max_win_streaks, "Loss Streaks": all_max_loss_streaks,
@@ -247,10 +250,6 @@ def run_monte_carlo(risk_val, trades_day_val, n_sims_override=None, seed=None):
     }
 
 def run_visualization_sim(risk_val, trades_day_val, n_viz=100, seed=None):
-    """
-    Original logic - Pure Simulation for Visualization
-    """
-    # Reset Seed สำหรับ Viz ถ้าจำเป็น (เพื่อให้ได้กราฟเดิมเมื่อกดปุ่มเดิม)
     if seed is not None:
         np.random.seed(seed)
         
@@ -329,7 +328,6 @@ with tab1:
                 for t_val in trades_list:
                     current_step += 1
                     status_text.text(f"Simulating... Risk: ${r_val} | Trades: {t_val}/day")
-                    # เรียกใช้โดยไม่ระบุ n_sims (จะไปใช้ค่า sims_tab1 จาก global) และใส่ seed
                     res = run_monte_carlo(r_val, t_val, seed=seed_val)
                     results_summary.append(res)
                     progress_bar.progress(current_step / total_steps)
@@ -337,14 +335,13 @@ with tab1:
             status_text.empty(); progress_bar.empty()
             df_summary = pd.DataFrame(results_summary)
             
-            # เพิ่ม Columns 99% ในการแสดงผล
             cols = ["Risk ($)", "Risk (%)", "Trades/Day", 
                     "Pass Rate (%)", "Median Days Pass", 
                     "Fail Rate (%)", "Timeout Rate (%)",
                     "Median Max Loss Streak", 
-                    "Worst Case Loss Streak (95%)", "Worst Case Loss Streak (99%)", # เพิ่ม 99%
+                    "Worst Case Loss Streak (95%)", "Worst Case Loss Streak (99%)", 
                     "Median Max Win Streak", 
-                    "Passed Worst Case Loss (95%)", "Passed Worst Case Loss (99%)"] # เพิ่ม 99%
+                    "Passed Worst Case Loss (95%)", "Passed Worst Case Loss (99%)"]
             
             st.session_state.sim_results = df_summary[cols]
             
@@ -371,16 +368,19 @@ with tab1:
 
         # 1. Pass Rate
         col1, col2 = st.columns(2)
-        with col1: draw_heatmap("Pass Rate (%)", "Blues", "🔥 1. Pass Rate (%)", "🟦 Goal: Maximize.")
-        with col2: draw_heatmap("Median Days Pass", "Purples", "⏳ 2. Median Days to Pass", "🟪 Efficiency.")
+        with col1: draw_heatmap("Pass Rate (%)", "Blues", "🔥 1. Pass Rate (%)", 
+                                "🟦 **Goal: Maximize.** Darker Blue = Higher probability of success.")
+        with col2: draw_heatmap("Median Days Pass", "Purples", "⏳ 2. Median Days to Pass", 
+                                "🟪 **Efficiency.** Darker Purple = Takes longer to pass.")
 
         # 3. Fail Rate
         col3, col4 = st.columns(2)
-        with col3: draw_heatmap("Fail Rate (%)", "Reds", "💥 3. Fail Rate (%)", "🟥 Goal: Minimize.")
-        with col4: draw_heatmap("Timeout Rate (%)", "Greys", "🐢 4. Timeout Rate (%)", "⬜ Goal: Minimize.")
+        with col3: draw_heatmap("Fail Rate (%)", "Reds", "💥 3. Fail Rate (%)", 
+                                "🟥 **Goal: Minimize.** Darker Red = High risk of blowing account.")
+        with col4: draw_heatmap("Timeout Rate (%)", "Greys", "🐢 4. Timeout Rate (%)", 
+                                "⬜ **Goal: Minimize.** Darker Grey = Strategy is too passive.")
 
-        # --- Update Unified Range to include 99% ---
-        # หา Min/Max จากทุกค่า Risk (รวม 99%) เพื่อให้ Scale สีเท่ากัน
+        # --- Unified Range Calculation ---
         loss_min = min(
             df_summary["Median Max Loss Streak"].min(), 
             df_summary["Worst Case Loss Streak (99%)"].min(), 
@@ -393,25 +393,29 @@ with tab1:
         )
         unified_loss_range = [loss_min, loss_max]
 
-        # 5. Median Loss
+        # 5. Median Loss Streak
         col5, col6 = st.columns(2)
         with col5: 
             draw_heatmap("Median Max Loss Streak", "Reds", "🥶 5. Median Max Loss Streak", 
-                         "🟥 Pain Index (Unified Scale).", fixed_range=unified_loss_range)
+                         "🟥 **Psychology.** Typical losing streak you will face (Unified Scale).", 
+                         fixed_range=unified_loss_range)
                          
-        # 6. Worst Case Loss (Risk = 99% ตามต้องการ)
+        # 6. Worst Case Loss Streak (99%)
         with col6: 
             draw_heatmap("Worst Case Loss Streak (99%)", "Reds", "💀 6. All: Extreme Loss (99%)", 
-                         "🟥 Extreme Risk. 99% chance limit (Unified Scale).", fixed_range=unified_loss_range)
+                         "🟥 **Extreme Risk.** 99% confidence limit. Must survive this (Unified Scale).", 
+                         fixed_range=unified_loss_range)
 
         # 7. Win Streak
         col7, col8 = st.columns(2)
-        with col7: draw_heatmap("Median Max Win Streak", "Greens", "🍀 7. Median Max Win Streak", "🟩 Momentum.")
+        with col7: draw_heatmap("Median Max Win Streak", "Greens", "🍀 7. Median Max Win Streak", 
+                                "🟩 **Momentum.** Darker Green = Stronger consecutive wins.")
         
-        # 8. Passed Worst Case Loss (Risk = 99% ตามต้องการ)
+        # 8. Passed Worst Case Loss (99%)
         with col8: 
             draw_heatmap("Passed Worst Case Loss (99%)", "Oranges", "🥵 8. Passed: Extreme Loss (99%)", 
-                         "🟧 Survivor Pain. 99% limit for winners (Unified Scale).", fixed_range=unified_loss_range)
+                         "🟧 **Survivor Reality.** Even winners endured this pain (Unified Scale).", 
+                         fixed_range=unified_loss_range)
 
         st.divider()
         
@@ -424,47 +428,41 @@ with tab1:
         natural_height = (len(df_summary) + 1) * 35 + 3
         table_height = natural_height if show_all_rows else min(natural_height, 400)
 
-        # Update Formatter for new columns
         st.dataframe(
             df_summary.style.format({
                 "Risk ($)": "${:.0f}", "Risk (%)": "{:.2f}%", 
                 "Pass Rate (%)": "{:.1f}%", "Fail Rate (%)": "{:.1f}%", "Timeout Rate (%)": "{:.1f}%",
                 "Median Days Pass": "{:.1f}",
                 "Median Max Loss Streak": "{:.1f}", 
-                "Worst Case Loss Streak (95%)": "{:.1f}", "Worst Case Loss Streak (99%)": "{:.1f}", # แสดงทั้งคู่
+                "Worst Case Loss Streak (95%)": "{:.1f}", "Worst Case Loss Streak (99%)": "{:.1f}",
                 "Median Max Win Streak": "{:.1f}",
-                "Passed Worst Case Loss (95%)": "{:.1f}", "Passed Worst Case Loss (99%)": "{:.1f}" # แสดงทั้งคู่
+                "Passed Worst Case Loss (95%)": "{:.1f}", "Passed Worst Case Loss (99%)": "{:.1f}" 
             })
             .background_gradient(subset=["Pass Rate (%)"], cmap="Blues")
             .background_gradient(subset=["Fail Rate (%)"], cmap="Reds")
             .background_gradient(subset=["Timeout Rate (%)"], cmap="Greys")
             .background_gradient(subset=["Median Days Pass"], cmap="Purples")
             .background_gradient(subset=["Median Max Loss Streak"], cmap="Reds", vmin=loss_min, vmax=loss_max)
-            .background_gradient(subset=["Worst Case Loss Streak (99%)"], cmap="Reds", vmin=loss_min, vmax=loss_max) # Color 99
-            .background_gradient(subset=["Passed Worst Case Loss (99%)"], cmap="Oranges", vmin=loss_min, vmax=loss_max), # Color 99
+            .background_gradient(subset=["Worst Case Loss Streak (99%)"], cmap="Reds", vmin=loss_min, vmax=loss_max) 
+            .background_gradient(subset=["Passed Worst Case Loss (99%)"], cmap="Oranges", vmin=loss_min, vmax=loss_max), 
             use_container_width=True,
             height=table_height
         )
         
-        # --- SIMULATION SETTINGS REFERENCE ---
         st.markdown("---")
         st.markdown("### ⚙️ Simulation Settings Reference")
         
-        # Load params saved from the last run
         p = st.session_state.sim_params
         
         c1, c2, c3 = st.columns(3)
-        
         with c1:
             st.markdown(f"• **Profit Target:** ${p['tgt']:,.0f}")
             st.markdown(f"• **Max Total Drawdown:** ${p['mtd']:,.0f}")
             st.markdown(f"• **Win Rate:** {p['win']}%")
-            
         with c2:
             st.markdown(f"• **Risk/Reward Ratio:** 1:{p['rr']}")
             st.markdown(f"• **No. of Trades per day:** {p['t_in']}")
             st.markdown(f"• **Risk Amount:** {p['r_in']}")
-            
         with c3:
             st.markdown(f"• **Daily Loss Limit (R):** {p['r_lim']}R")
             st.markdown(f"• **Simulation per scenario:** {p['sims']:,}")
@@ -477,7 +475,6 @@ with tab2:
     st.markdown("### 📈 Visualize Specific Scenario")
     st.caption(f"Statistics calculated using 'Deep Dive' count: {sims_tab2} runs. | Visualization uses sample count below.")
     
-    # --- 1. Helper Functions ---
     def plot_hist_with_stats(data, title, color_hex, label="Count", nbins=50, percentiles_list=None):
         if not data: st.info(f"No data for {title}"); return
         
@@ -487,26 +484,22 @@ with tab2:
         fig = px.histogram(x=data, nbins=nbins, labels={'x': label}, color_discrete_sequence=[color_hex])
         fig.update_traces(marker_opacity=0.7)
 
-        # 1. Median
         fig.add_shape(type="line", x0=median_val, x1=median_val, y0=0, y1=1.02, yref="paper", xref="x",
                       line=dict(color=color_hex, width=2, dash="solid"))
         fig.add_annotation(x=median_val, y=1.05, yref="paper", text=f"Med: {median_val:.1f}", 
                            showarrow=False, font=dict(color=color_hex, size=11, weight="bold"), 
                            xanchor="center", yanchor="bottom", bgcolor="rgba(255,255,255,0.7)")
         
-        # 2. Average
         fig.add_shape(type="line", x0=mean_val, x1=mean_val, y0=0, y1=1.15, yref="paper", xref="x",
                       line=dict(color=color_hex, width=2, dash="dash"))
         fig.add_annotation(x=mean_val, y=1.18, yref="paper", text=f"Avg: {mean_val:.1f}", 
                            showarrow=False, font=dict(color=color_hex, size=11, weight="bold"), 
                            xanchor="center", yanchor="bottom", bgcolor="rgba(255,255,255,0.7)")
         
-        # 3. Handle Multiple Percentiles (เช่น [95, 99])
         if percentiles_list:
-            # กำหนดความสูงของเส้นและข้อความให้ไม่ทับกัน (Staggering)
             y_line_base = 1.25
             y_text_base = 1.28
-            step = 0.12 # ระยะห่างระหว่างชั้น
+            step = 0.12 
             
             for i, p in enumerate(percentiles_list):
                 p_val = np.percentile(data, p)
@@ -520,7 +513,6 @@ with tab2:
                                    showarrow=False, font=dict(color=color_hex, size=10, weight="bold"), 
                                    xanchor="center", yanchor="bottom", bgcolor="rgba(255,255,255,0.7)")
 
-        # ปรับ Margin ด้านบนให้สูงขึ้นเผื่อไว้หลายชั้น
         fig.update_layout(height=400, showlegend=False, margin=dict(l=20, r=20, t=150, b=20), bargap=0.1)
         st.plotly_chart(fig, use_container_width=True)
 
@@ -539,7 +531,6 @@ with tab2:
         </div>
         """, unsafe_allow_html=True)
 
-    # --- 2. Input Section ---
     try:
         r_options = [float(x.strip()) for x in risk_input.split(',')]
         t_options = [int(x.strip()) for x in trades_input.split(',')]
@@ -550,14 +541,11 @@ with tab2:
         c1, c2, c3 = st.columns(3)
         with c1: sel_risk = st.selectbox("Select Risk ($)", r_options)
         with c2: sel_trades = st.selectbox("Select Trades/Day", t_options)
-        with c3: sel_sim_count = st.number_input("No. of Lines (Viz Only)", value=1000, min_value=100, step=500)
+        with c3: sel_sim_count = st.number_input("No. of Lines (Visualization Only)", value=1000, min_value=100, step=500)
 
-        # --- 3. Calculation Logic ---
         if viz_btn:
             with st.spinner("Calculating Statistics (High Precision)..."):
-                # เรียกใช้โดยระบุ n_sims_override เป็นค่าสูง (sims_tab2) และใส่ Seed
                 stats = run_monte_carlo(sel_risk, sel_trades, n_sims_override=sims_tab2, seed=seed_val)
-                # ส่วน Viz รันแยก ใช้จำนวนน้อย (sel_sim_count) เพื่อวาดกราฟ
                 df_viz = run_visualization_sim(sel_risk, sel_trades, n_viz=sel_sim_count, seed=seed_val)
                 
                 df_viz['Profit'] = df_viz['Equity'] - account_size
@@ -571,28 +559,25 @@ with tab2:
                     "sim_count": sel_sim_count
                 }
 
-        # --- 4. Display Logic ---
         if "deep_dive_data" in st.session_state and st.session_state.deep_dive_data is not None:
             data = st.session_state.deep_dive_data
             stats = data["stats"]
             df_viz = data["df_viz"]
             
-            # METRICS (Update ให้แสดง 99% ด้วย)
             st.markdown("#### 📊 Scenario Statistics & Probabilities")
             def metric_card(label, main_val, sub_val=None):
                 st.metric(label, main_val)
                 if sub_val: st.markdown(f"<div class='avg-text'>{sub_val}</div>", unsafe_allow_html=True)
 
             k1, k2, k3, k4 = st.columns(4)
-            with k1: metric_card("🔥 Pass Rate", f"{stats['Pass Rate (%)']:.1f}%")
-            with k2: metric_card("💥 Fail Rate", f"{stats['Fail Rate (%)']:.1f}%")
-            with k3: metric_card("🐢 Timeout Rate", f"{stats['Timeout Rate (%)']:.1f}%")
+            with k1: metric_card("🔥 Pass Rate", f"{stats['Pass Rate (%)']:.1f}%", f"{stats['Pass Count']:,}/{stats['Total Sims']:,}")
+            with k2: metric_card("💥 Fail Rate", f"{stats['Fail Rate (%)']:.1f}%", f"{stats['Fail Count']:,}/{stats['Total Sims']:,}")
+            with k3: metric_card("🐢 Timeout Rate", f"{stats['Timeout Rate (%)']:.1f}%", f"{stats['Timeout Count']:,}/{stats['Total Sims']:,}")
             with k4: metric_card("⏳ Days to Pass", f"Med: {stats['Median Days Pass']}", f"Avg: {stats['Avg Days Pass']}")
 
             m1, m2, m3, m4 = st.columns(4)
             with m1: metric_card("🍀 Win Streak", f"Med: {stats['Median Max Win Streak']}", f"Avg: {stats['Avg Max Win Streak']}")
             with m2: metric_card("🥶 Loss Streak", f"Med: {stats['Median Max Loss Streak']}", f"Avg: {stats['Avg Max Loss Streak']}")
-            # เปลี่ยนแสดง 99% เป็นหลัก และแนบ 95% เป็นตัวรอง
             with m3: metric_card("🥵 Passed Loss (99%)", f"{stats['Passed Worst Case Loss (99%)']}", f"95%: {stats['Passed Worst Case Loss (95%)']}")
             with m4: metric_card("💀 All Loss (99%)", f"{stats['Worst Case Loss Streak (99%)']}", f"95%: {stats['Worst Case Loss Streak (95%)']}")
             
@@ -647,17 +632,12 @@ with tab2:
                     </div>
                     """, unsafe_allow_html=True)
 
-            # HISTOGRAMS: เรียกใช้ percentiles_list=[95, 99] สำหรับ Risk
             r2_1, r2_2 = st.columns(2)
-            # Days Pass (ไม่เกี่ยวกับ Risk ใช้ 95 เดิม)
             with r2_1: plot_hist_with_stats(raw_data["Pass Days"], "⏳ Days to Pass Distribution", "#6A0DAD", "Days", 20, percentiles_list=[95]) 
-            # Passed Loss (เกี่ยวกับ Risk ใช้ 95 และ 99)
             with r2_2: plot_hist_with_stats(raw_data["Passed Loss Streaks"], "🥵 Passed : Max Loss Streaks", "#FF4500", "Streak Count", 15, percentiles_list=[95, 99]) 
 
             r3_1, r3_2 = st.columns(2)
-            # Win Streak (ไม่เกี่ยวกับ Risk ใช้ 95 เดิม)
             with r3_1: plot_hist_with_stats(raw_data["Win Streaks"], "🍀 Max Win Streaks", "#2CA02C", "Streak Count", 15, percentiles_list=[95]) 
-            # All Loss (เกี่ยวกับ Risk ใช้ 95 และ 99)
             with r3_2: plot_hist_with_stats(raw_data["Loss Streaks"], "💀 All : Max Loss Streaks", "#8B0000", "Streak Count", 15, percentiles_list=[95, 99]) 
 
     except ValueError: st.error("⚠️ Error in inputs.")
