@@ -371,7 +371,7 @@ with tab1:
         with col1: draw_heatmap("Pass Rate (%)", "Blues", "🔥 1. Pass Rate (%)", 
                                 "🟦 **Goal: Maximize.** Darker Blue = Higher probability of success.")
         with col2: draw_heatmap("Median Days Pass", "Purples", "⏳ 2. Median Days to Pass", 
-                                "🟪 **Efficiency.** Darker Purple = Takes longer to pass.")
+                                "🟪 **Goal: Minimize.** Darker Purple = Takes longer to pass.")
 
         # 3. Fail Rate
         col3, col4 = st.columns(2)
@@ -641,3 +641,4 @@ with tab2:
             with r3_2: plot_hist_with_stats(raw_data["Loss Streaks"], "💀 All : Max Loss Streaks", "#8B0000", "Streak Count", 15, percentiles_list=[95, 99]) 
 
     except ValueError: st.error("⚠️ Error in inputs.")
+
